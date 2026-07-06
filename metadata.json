@@ -1,0 +1,6 @@
+{
+  "name": "SGA News Portal",
+  "description": "Portal Berita SGA - Platform Media Komunitas dengan Sistem Redaksi, Manajemen Penulis, dan Pembaca Berita Lengkap",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

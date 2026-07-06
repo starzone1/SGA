@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "articles": {
+      "title": "Articles",
+      "description": "News articles submitted by authors, reviewed by editors, and published for readers.",
+      "properties": {
+        "title": { "type": "string", "description": "Article headline title" },
+        "slug": { "type": "string", "description": "URL slug" },
+        "excerpt": { "type": "string", "description": "Short article summary" },
+        "content": { "type": "string", "description": "HTML or text article body content" },
+        "coverImage": { "type": "string", "description": "Cover image URL" },
+        "category": { "type": "string", "description": "News category" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Article tags"
+        },
+        "authorId": { "type": "string", "description": "ID of the author" },
+        "authorName": { "type": "string", "description": "Name of the author" },
+        "authorAvatar": { "type": "string", "description": "Avatar image URL of the author" },
+        "authorRole": { "type": "string", "description": "Display role of the author" },
+        "status": { "type": "string", "description": "Status: draft, pending, published, rejected" },
+        "createdAt": { "type": "string", "description": "ISO timestamp string when created" },
+        "publishedAt": { "type": "string", "description": "ISO timestamp string when published" },
+        "views": { "type": "number", "description": "Total view count" },
+        "likes": { "type": "number", "description": "Total like count" },
+        "isBreaking": { "type": "boolean", "description": "Flag for breaking news headline" },
+        "isFeatured": { "type": "boolean", "description": "Flag for featured news hero" },
+        "editorialNotes": { "type": "string", "description": "Editorial review comments or rejection notes" },
+        "reactions": {
+          "type": "object",
+          "properties": {
+            "suka": { "type": "number" },
+            "inspiratif": { "type": "number" },
+            "haru": { "type": "number" },
+            "kaget": { "type": "number" }
+          },
+          "description": "Article reaction counters"
+        }
+      },
+      "required": ["title", "excerpt", "content", "category", "authorId", "authorName", "status", "createdAt"]
+    },
+    "comments": {
+      "title": "Article Comments",
+      "description": "Comments on news articles",
+      "properties": {
+        "articleId": { "type": "string", "description": "Target article ID" },
+        "authorName": { "type": "string", "description": "Commenter display name" },
+        "authorAvatar": { "type": "string", "description": "Commenter avatar URL" },
+        "authorRole": { "type": "string", "description": "Commenter role title" },
+        "content": { "type": "string", "description": "Comment text" },
+        "createdAt": { "type": "string", "description": "ISO timestamp string" },
+        "likes": { "type": "number", "description": "Comment likes count" }
+      },
+      "required": ["articleId", "authorName", "content", "createdAt"]
+    },
+    "users": {
+      "title": "Users",
+      "description": "User profiles and personas",
+      "properties": {
+        "name": { "type": "string", "description": "User full name" },
+        "email": { "type": "string", "description": "User email address" },
+        "role": { "type": "string", "description": "User role: admin, editor, author, reader" },
+        "avatar": { "type": "string", "description": "Avatar URL" },
+        "bio": { "type": "string", "description": "User bio" },
+        "joinedDate": { "type": "string", "description": "Joined date string" },
+        "articlesCount": { "type": "number", "description": "Number of articles authored" }
+      },
+      "required": ["name", "email", "role"]
+    }
+  },
+  "securityRules": {
+    "articles": {
+      "read": "true",
+      "write": "true"
+    },
+    "comments": {
+      "read": "true",
+      "write": "true"
+    },
+    "users": {
+      "read": "true",
+      "write": "true"
+    }
+  }
+}

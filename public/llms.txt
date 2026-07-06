@@ -1,0 +1,13 @@
+# SGA News - Portal Berita Terpercaya & Teraktual
+
+> SGA News adalah portal berita independen yang menyajikan berita terkini, analisis mendalam, tajuk utama nasional, politik, ekonomi, teknologi, dan olahraga.
+
+## Berita & Kategori Utama
+
+- [Berita Utama & Terbaru](https://sganews.vercel.app/)
+- [Kategori Politik & Hukum](https://sganews.vercel.app/kategori/Politik)
+- [Kategori Teknologi & Gadget](https://sganews.vercel.app/kategori/Teknologi)
+- [Kategori Ekonomi & Bisnis](https://sganews.vercel.app/kategori/Ekonomi)
+- [Kategori Olahraga & eSports](https://sganews.vercel.app/kategori/Olahraga)
+- [Kategori LINK KANCAH4D](https://sganews.vercel.app/kategori/KANCAH4D)
+- [Sitemap XML](https://sganews.vercel.app/sitemap.xml)
