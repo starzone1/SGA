@@ -35,6 +35,7 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newBio, setNewBio] = useState('');
+  const [newRecoveryPin, setNewRecoveryPin] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
 
   // Forgot Password Modal State & Auth loading state
@@ -84,8 +85,8 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
     setLoginError('');
     setRegisterSuccess('');
 
-    if (!newName || !newEmail || !newPassword) {
-      setLoginError('Harap lengkapi semua kolom wajib.');
+    if (!newName || !newEmail || !newPassword || !newRecoveryPin) {
+      setLoginError('Harap lengkapi semua kolom wajib (termasuk PIN Pemulihan).');
       return;
     }
 
@@ -94,9 +95,15 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       return;
     }
 
+    const cleanPin = newRecoveryPin.trim();
+    if (cleanPin.length !== 6 || isNaN(Number(cleanPin))) {
+      setLoginError('PIN Pemulihan Akun harus berupa 6 digit angka.');
+      return;
+    }
+
     setIsAuthChecking(true);
     try {
-      const user = await signUpUserWithAuth(newEmail, newPassword, newName, newBio);
+      const user = await signUpUserWithAuth(newEmail, newPassword, newName, newBio, cleanPin);
       setCurrentUser(user);
       onUserChanged(user);
       setRegisterSuccess('Pendaftaran berhasil! Akun Penulis Komunitas Anda telah aktif.');
@@ -441,6 +448,29 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
                             onChange={e => setNewPassword(e.target.value)}
                             className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                              PIN Pemulihan Akun (6 Digit Angka)
+                            </label>
+                            <span className="text-[10px] text-amber-500 font-bold">Penting & Rahasia!</span>
+                          </div>
+                          <input
+                            type="text"
+                            required
+                            maxLength={6}
+                            pattern="\d{6}"
+                            placeholder="Contoh: 882910"
+                            value={newRecoveryPin}
+                            onChange={e => {
+                              const val = e.target.value.replace(/\D/g, ''); // only allow digits
+                              setNewRecoveryPin(val);
+                            }}
+                            className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          />
+                          <p className="text-[10px] text-slate-500 mt-1">Gunakan PIN ini untuk menyetel ulang kata sandi secara instan & aman jika Anda lupa sandi di kemudian hari.</p>
                         </div>
 
                         <div>

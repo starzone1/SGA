@@ -21,7 +21,7 @@ import {
   signOut
 } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
-import { Article, ArticleComment, User, ArticleReaction, Category } from '../types';
+import { Article, ArticleComment, User, ArticleReaction, Category, SecureResetRequest } from '../types';
 import { INITIAL_ARTICLES, INITIAL_COMMENTS, INITIAL_USERS } from '../data/initialData';
 
 const ARTICLES_COL = 'articles';
@@ -473,10 +473,12 @@ export async function signUpUserWithAuth(
   email: string, 
   pass: string, 
   name: string, 
-  bio?: string
+  bio?: string,
+  recoveryPin?: string
 ): Promise<User> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = pass.trim();
+  const cleanPin = recoveryPin?.trim() || '';
 
   try {
     // 1. Create in Firebase Auth
@@ -497,7 +499,8 @@ export async function signUpUserWithAuth(
       profileLikesCount: 0,
       followers: [],
       isVerified: false,
-      password: cleanPass // Keep for compatibility
+      password: cleanPass, // Keep for compatibility
+      recoveryPin: cleanPin
     };
 
     await setDoc(doc(db, USERS_COL, uid), newUser);
@@ -529,7 +532,8 @@ export async function signUpUserWithAuth(
       profileLikesCount: 0,
       followers: [],
       isVerified: false,
-      password: cleanPass
+      password: cleanPass,
+      recoveryPin: cleanPin
     };
 
     await setDoc(doc(db, USERS_COL, customId), newUser);
@@ -703,5 +707,263 @@ export async function sendPasswordReset(email: string): Promise<void> {
  */
 export async function signOutUserWithAuth(): Promise<void> {
   await signOut(auth);
+}
+
+/**
+ * RESET PASSWORD INSTAN MANDIRI (VERIFIKASI PIN PEMULIHAN AMAN TANPA TUNGGU EMAIL)
+ */
+export async function instantResetPassword(
+  email: string,
+  verificationCodeOrPin: string,
+  newPass: string
+): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase();
+  const inputPin = verificationCodeOrPin.trim();
+  const cleanPass = newPass.trim();
+
+  if (cleanPass.length < 6) {
+    throw new Error('Kata sandi baru minimal harus 6 karakter.');
+  }
+
+  if (!inputPin) {
+    throw new Error('PIN Pemulihan / Kode Keamanan wajib diisi.');
+  }
+
+  // 1. Find user in Firestore users collection
+  const usersRef = collection(db, USERS_COL);
+  const q = query(usersRef, where('email', '==', cleanEmail));
+  const querySnap = await getDocs(q);
+
+  let matchedUser: User | undefined = undefined;
+  let matchedDocId: string | undefined = undefined;
+
+  if (!querySnap.empty) {
+    matchedDocId = querySnap.docs[0].id;
+    matchedUser = querySnap.docs[0].data() as User;
+  } else {
+    // Check in preloaded users list
+    matchedUser = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+    if (matchedUser) {
+      matchedDocId = matchedUser.id;
+    }
+  }
+
+  if (!matchedUser || !matchedDocId) {
+    throw new Error('Alamat email tidak terdaftar di database SGA News.');
+  }
+
+  // 2. Security Verification
+  const savedPin = matchedUser.recoveryPin?.trim();
+
+  if (savedPin) {
+    if (inputPin !== savedPin) {
+      throw new Error('Verifikasi Gagal: PIN Pemulihan Akun Anda tidak cocok. Silakan periksa kembali PIN Anda.');
+    }
+  } else {
+    // Fallback for pre-existing system accounts that do not have a recoveryPin yet
+    const MASTER_RECOVERY_CODE = 'SGA2026-REDAKSI';
+    if (inputPin !== MASTER_RECOVERY_CODE) {
+      throw new Error('Verifikasi Gagal: Akun bawaan belum dikonfigurasi dengan PIN pribadi. Silakan masukkan Kode Pemulihan Redaksi Khusus (SGA2026-REDAKSI) atau hubungi Pemimpin Redaksi.');
+    }
+  }
+
+  // 3. Update the password in Firestore document (for fallback access)
+  const updatedUser: User = {
+    ...matchedUser,
+    password: cleanPass
+  };
+
+  await setDoc(doc(db, USERS_COL, matchedDocId), updatedUser, { merge: true });
+}
+
+const SECURE_RESETS_COL = 'secure_resets';
+
+/**
+ * GENERATE SECURE RESET REQUEST (EMAIL OTP & SECURE LINK VERIFICATION)
+ */
+export async function generateSecureResetRequest(email: string): Promise<SecureResetRequest> {
+  const cleanEmail = email.trim().toLowerCase();
+
+  // 1. Verify email exists in USERS_COL or INITIAL_USERS
+  const usersRef = collection(db, USERS_COL);
+  const q = query(usersRef, where('email', '==', cleanEmail));
+  const querySnap = await getDocs(q);
+
+  let matchedUserExists = !querySnap.empty;
+
+  if (!matchedUserExists) {
+    const isPredefined = INITIAL_USERS.some(u => u.email.toLowerCase() === cleanEmail);
+    if (!isPredefined) {
+      throw new Error('Alamat email tidak terdaftar di sistem SGA News.');
+    }
+  }
+
+  // 2. Generate secure OTP (6 digit numeric)
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 3. Generate secure random token (link)
+  const token = 'sec_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+  const id = 'reset_' + Math.random().toString(36).substring(2, 10);
+  const now = new Date();
+  const expires = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes expiration
+
+  const request: SecureResetRequest = {
+    id,
+    email: cleanEmail,
+    otp,
+    token,
+    createdAt: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    isUsed: false,
+  };
+
+  // 4. Save to Firestore
+  await setDoc(doc(db, SECURE_RESETS_COL, id), request);
+
+  return request;
+}
+
+/**
+ * VERIFY SECURE EMAIL OTP AND RESET PASSWORD
+ */
+export async function verifyOtpAndResetPassword(
+  email: string,
+  otp: string,
+  newPass: string
+): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = otp.trim();
+  const cleanPass = newPass.trim();
+
+  if (cleanPass.length < 6) {
+    throw new Error('Kata sandi baru minimal harus 6 karakter.');
+  }
+
+  // 1. Find valid reset request
+  const resetsRef = collection(db, SECURE_RESETS_COL);
+  const q = query(
+    resetsRef, 
+    where('email', '==', cleanEmail), 
+    where('otp', '==', cleanOtp), 
+    where('isUsed', '==', false)
+  );
+  const querySnap = await getDocs(q);
+
+  if (querySnap.empty) {
+    throw new Error('Kode OTP salah, telah digunakan, atau tidak berlaku untuk email ini.');
+  }
+
+  const resetDoc = querySnap.docs[0];
+  const resetData = resetDoc.data() as SecureResetRequest;
+
+  // 2. Check expiration
+  if (new Date(resetData.expiresAt).getTime() < Date.now()) {
+    throw new Error('Kode OTP telah kedaluwarsa (berlaku hanya 5 menit). Silakan kirim ulang kode baru.');
+  }
+
+  // 3. Find User Document to Update
+  const usersRef = collection(db, USERS_COL);
+  const uq = query(usersRef, where('email', '==', cleanEmail));
+  const userSnap = await getDocs(uq);
+
+  let matchedUser: User | undefined = undefined;
+  let matchedDocId: string | undefined = undefined;
+
+  if (!userSnap.empty) {
+    matchedDocId = userSnap.docs[0].id;
+    matchedUser = userSnap.docs[0].data() as User;
+  } else {
+    // Check in preloaded users list and provision on the fly
+    matchedUser = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+    if (matchedUser) {
+      matchedDocId = matchedUser.id;
+    }
+  }
+
+  if (!matchedUser || !matchedDocId) {
+    throw new Error('Alamat email tidak ditemukan untuk pembaruan kata sandi.');
+  }
+
+  // 4. Mark request as used
+  await updateDoc(doc(db, SECURE_RESETS_COL, resetDoc.id), { isUsed: true });
+
+  // 5. Update password in user profile
+  const updatedUser: User = {
+    ...matchedUser,
+    password: cleanPass
+  };
+  await setDoc(doc(db, USERS_COL, matchedDocId), updatedUser, { merge: true });
+}
+
+/**
+ * VERIFY SECURE RESET LINK TOKEN AND RESET PASSWORD
+ */
+export async function verifyTokenAndResetPassword(
+  email: string,
+  token: string,
+  newPass: string
+): Promise<void> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim();
+  const cleanPass = newPass.trim();
+
+  if (cleanPass.length < 6) {
+    throw new Error('Kata sandi baru minimal harus 6 karakter.');
+  }
+
+  // 1. Find valid reset request
+  const resetsRef = collection(db, SECURE_RESETS_COL);
+  const q = query(
+    resetsRef, 
+    where('email', '==', cleanEmail), 
+    where('token', '==', cleanToken), 
+    where('isUsed', '==', false)
+  );
+  const querySnap = await getDocs(q);
+
+  if (querySnap.empty) {
+    throw new Error('Tautan verifikasi salah, telah digunakan, atau kedaluwarsa.');
+  }
+
+  const resetDoc = querySnap.docs[0];
+  const resetData = resetDoc.data() as SecureResetRequest;
+
+  // 2. Check expiration
+  if (new Date(resetData.expiresAt).getTime() < Date.now()) {
+    throw new Error('Tautan verifikasi keamanan telah kedaluwarsa (berlaku hanya 5 menit). Silakan minta tautan baru.');
+  }
+
+  // 3. Find User Document to Update
+  const usersRef = collection(db, USERS_COL);
+  const uq = query(usersRef, where('email', '==', cleanEmail));
+  const userSnap = await getDocs(uq);
+
+  let matchedUser: User | undefined = undefined;
+  let matchedDocId: string | undefined = undefined;
+
+  if (!userSnap.empty) {
+    matchedDocId = userSnap.docs[0].id;
+    matchedUser = userSnap.docs[0].data() as User;
+  } else {
+    matchedUser = INITIAL_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+    if (matchedUser) {
+      matchedDocId = matchedUser.id;
+    }
+  }
+
+  if (!matchedUser || !matchedDocId) {
+    throw new Error('Alamat email tidak ditemukan untuk pembaruan kata sandi.');
+  }
+
+  // 4. Mark request as used
+  await updateDoc(doc(db, SECURE_RESETS_COL, resetDoc.id), { isUsed: true });
+
+  // 5. Update password in user profile
+  const updatedUser: User = {
+    ...matchedUser,
+    password: cleanPass
+  };
+  await setDoc(doc(db, USERS_COL, matchedDocId), updatedUser, { merge: true });
 }
 

@@ -19,6 +19,7 @@ export interface User {
   website?: string;
   tags?: string[];
   password?: string;
+  recoveryPin?: string;
 }
 
 export type Category = 
@@ -86,4 +87,14 @@ export interface SiteStats {
   totalViews: number;
   activeAuthors: number;
   pendingReviews: number;
+}
+
+export interface SecureResetRequest {
+  id: string;
+  email: string;
+  otp: string;
+  token: string;
+  createdAt: string; // ISO String
+  expiresAt: string; // ISO String
+  isUsed: boolean;
 }
