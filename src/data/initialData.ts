@@ -7,11 +7,16 @@ export const INITIAL_USERS: User[] = [
     email: 'official@kancah4d.com',
     role: 'author',
     avatar: 'https://ik.imagekit.io/dxokd3m9y/sgaicon.png',
-    bio: 'Official Brand Representative & Jurnalis Media KANCAH4D. Menyajikan warta resmi, artikel edukasi teknologi, dan hiburan online terpercaya.',
+    bio: 'SITUS DARING ONLINE TERPERCAYA DI KANCAH4D [Exclusive]',
     joinedDate: 'Januari 2026',
     articlesCount: 5,
     followersCount: 152,
-    profileLikesCount: 98
+    profileLikesCount: 98,
+    organization: 'KANCAH4D | LINK KANCAH4D | SITUS KANCAH4D | ALTERNATIF KANCAH4D',
+    occupation: 'KANCAH4D',
+    industry: 'Design',
+    website: 'https://login-kancah4d.pages.dev/',
+    tags: ['kancah4d', 'slotgame', 'situskancah4d', 'situsviral', 'linkkancah4d', 'situsgacor']
   },
   {
     id: 'user-admin-owner',

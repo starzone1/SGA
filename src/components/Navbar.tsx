@@ -42,6 +42,8 @@ interface NavbarProps {
   onNavigateHome: () => void;
   onOpenSitemapModal?: () => void;
   onSelectAuthor?: (authorId: string, authorName: string) => void;
+  onOpenEditProfile?: () => void;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -61,7 +63,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeView,
   onNavigateHome,
   onOpenSitemapModal,
-  onSelectAuthor
+  onSelectAuthor,
+  onOpenEditProfile,
+  onLogout
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -301,21 +305,130 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* User Account / Sign in Section removed from public navbar for strict separation. Accessed via /redaksi or footer */}
+          {/* User Account / Sign in Section - Profile Dropdown when Logged In */}
           <div className="flex items-center gap-1.5">
-            <a
-              href="/redaksi"
-              onClick={(e) => {
-                e.preventDefault();
-                try {
-                  window.history.pushState({ view: 'redaksi-portal' }, '', '/redaksi');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                } catch (err) {}
-              }}
-              className="hidden sm:inline-flex px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-full transition"
-            >
-              LOGIN AKUN
-            </a>
+            {currentUser ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 p-1 px-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-full transition cursor-pointer select-none"
+                >
+                  <img
+                    src={getAuthorAvatar(currentUser.avatar, currentUser.role, currentUser.name, currentUser.isVerified)}
+                    alt={currentUser.name}
+                    className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="hidden sm:inline text-xs font-bold text-slate-700 dark:text-slate-300 max-w-[120px] truncate">
+                    {currentUser.name}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    {/* User Info Header */}
+                    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={getAuthorAvatar(currentUser.avatar, currentUser.role, currentUser.name, currentUser.isVerified)}
+                          alt={currentUser.name}
+                          className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-extrabold text-slate-800 dark:text-white truncate flex items-center gap-1">
+                            <span>{currentUser.name}</span>
+                            {isUserAdminOrVerified(currentUser.role, currentUser.name, currentUser.isVerified) && (
+                              <VerifiedBadge size="xs" />
+                            )}
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 capitalize">
+                            {currentUser.role === 'admin' ? 'Pemimpin Redaksi' : currentUser.role === 'editor' ? 'Editor Redaksi' : 'Penulis Staff'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Options */}
+                    <div className="p-1 space-y-0.5">
+                      {/* About / Profile */}
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onSelectAuthor) {
+                            onSelectAuthor(currentUser.id, currentUser.name);
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition text-left"
+                      >
+                        <UserIcon className="w-4 h-4 text-slate-400" />
+                        <span>Tentang / Profil</span>
+                      </button>
+
+                      {/* Artikel / Dashboard */}
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (currentUser.role === 'admin' || currentUser.role === 'editor') {
+                            onOpenRedaksiDashboard();
+                          } else {
+                            onOpenWriteDashboard();
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition text-left"
+                      >
+                        <PenTool className="w-4 h-4 text-slate-400" />
+                        <span>Artikel / Dashboard</span>
+                      </button>
+
+                      {/* Pengaturan Profil */}
+                      {onOpenEditProfile && (
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onOpenEditProfile();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition text-left"
+                        >
+                          <Settings className="w-4 h-4 text-slate-400" />
+                          <span>Pengaturan Profil</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Logout Option */}
+                    <div className="px-1 pt-1 mt-1 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onLogout) onLogout();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition text-left"
+                      >
+                        <LogOut className="w-4 h-4 text-red-500" />
+                        <span>Logout (Keluar)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a
+                href="/redaksi"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    window.history.pushState({ view: 'redaksi-portal' }, '', '/redaksi');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  } catch (err) {}
+                }}
+                className="hidden sm:inline-flex px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-full transition"
+              >
+                LOGIN AKUN
+              </a>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -379,19 +492,103 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="pt-1 flex flex-col gap-2">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                try {
-                  window.history.pushState({ view: 'redaksi-portal' }, '', '/redaksi');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                } catch (err) {}
-              }}
-              className="w-full flex items-center justify-center gap-1.5 p-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 dark:border-slate-700 text-xs font-bold shadow-sm"
-            >
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>LOGIN AKUN</span>
-            </button>
+            {currentUser ? (
+              <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-850 rounded-xl p-3.5 space-y-3 shadow-inner">
+                {/* Profile header */}
+                <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800">
+                  <img
+                    src={getAuthorAvatar(currentUser.avatar, currentUser.role, currentUser.name, currentUser.isVerified)}
+                    alt={currentUser.name}
+                    className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-white truncate flex items-center gap-1">
+                      <span>{currentUser.name}</span>
+                      {isUserAdminOrVerified(currentUser.role, currentUser.name, currentUser.isVerified) && (
+                        <VerifiedBadge size="xs" />
+                      )}
+                    </p>
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">
+                      {currentUser.role === 'admin' ? 'Pemimpin Redaksi' : currentUser.role === 'editor' ? 'Editor' : 'Penulis'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub features buttons list */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {/* About / Profile */}
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (onSelectAuthor) {
+                        onSelectAuthor(currentUser.id, currentUser.name);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-xs"
+                  >
+                    <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Profil / About</span>
+                  </button>
+
+                  {/* Artikel / Dashboard */}
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (currentUser.role === 'admin' || currentUser.role === 'editor') {
+                        onOpenRedaksiDashboard();
+                      } else {
+                        onOpenWriteDashboard();
+                      }
+                    }}
+                    className="flex items-center gap-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-xs"
+                  >
+                    <PenTool className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Artikel / CMS</span>
+                  </button>
+
+                  {/* Pengaturan Profil */}
+                  {onOpenEditProfile && (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenEditProfile();
+                      }}
+                      className="flex items-center gap-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-xs col-span-2 justify-center"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Pengaturan Profil</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Logout button */}
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onLogout) onLogout();
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-200/50 dark:border-red-900/30 text-xs font-bold transition duration-150 active:scale-95"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout (Keluar)</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  try {
+                    window.history.pushState({ view: 'redaksi-portal' }, '', '/redaksi');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  } catch (err) {}
+                }}
+                className="w-full flex items-center justify-center gap-1.5 p-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 dark:border-slate-700 text-xs font-bold shadow-sm"
+              >
+                <ShieldCheck className="w-4 h-4 text-blue-400" />
+                <span>LOGIN AKUN</span>
+              </button>
+            )}
           </div>
 
           <div className="pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">

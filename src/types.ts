@@ -13,6 +13,12 @@ export interface User {
   followersCount?: number;
   profileLikesCount?: number;
   followers?: string[];
+  organization?: string;
+  occupation?: string;
+  industry?: string;
+  website?: string;
+  tags?: string[];
+  password?: string;
 }
 
 export type Category = 

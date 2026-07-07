@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Article, Category, User } from './types';
-import { getCurrentUser, getStoredUsers, getBookmarks, toggleBookmark, OFFICIAL_ADMIN_USER } from './utils/storage';
+import { getCurrentUser, getStoredUsers, getBookmarks, toggleBookmark, OFFICIAL_ADMIN_USER, setCurrentUser as setStoredCurrentUser } from './utils/storage';
 import { INITIAL_USERS, INITIAL_ARTICLES } from './data/initialData';
 import { subscribeToArticles, subscribeToUsers } from './services/firestoreService';
 import { updateArticleSEO } from './utils/seo';
@@ -452,7 +452,7 @@ export default function App() {
     (articles || []).forEach(a => { if (a && a.id) articleMap.set(a.id, a); });
     const combined = Array.from(articleMap.values());
 
-    return combined.map(art => {
+    const mapped = combined.map(art => {
       const authorUser = users.find(u => 
         u && (
           (art.authorId && u.id === art.authorId) ||
@@ -476,6 +476,13 @@ export default function App() {
           isVerified
         };
       }
+    });
+
+    // Sort by createdAt descending so newest articles are always shown first on the homepage/headlines
+    return mapped.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
     });
   }, [articles, users]);
 
@@ -556,6 +563,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleLogout = () => {
+    setStoredCurrentUser(null);
+    setCurrentUser(null);
+    handleNavigateHome();
+  };
+
   // Filter published articles for home view
   const publishedArticles = syncedArticles.filter(a => a.status === 'published');
   
@@ -622,6 +635,8 @@ export default function App() {
         onNavigateHome={handleNavigateHome}
         onOpenSitemapModal={() => setSitemapModalOpen(true)}
         onSelectAuthor={handleSelectAuthor}
+        onOpenEditProfile={() => setEditProfileModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Header Google AdSense Banner (Renders if approved in Admin Dashboard) */}
@@ -808,9 +823,55 @@ export default function App() {
         {/* VIEW 4: AUTHOR CMS DASHBOARD */}
         {activeView === 'author-cms' && currentUser && (
           <Suspense fallback={
-            <div className="max-w-4xl mx-auto py-20 text-center space-y-3">
-              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs font-semibold text-slate-500">Memuat Dashboard Penulis...</p>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 animate-pulse">
+              {/* Dashboard Banner Header Skeleton */}
+              <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-6">
+                <div className="flex items-center gap-4 max-w-xl">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-800 shrink-0"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-28 bg-slate-800 rounded"></div>
+                    <div className="h-6 w-48 bg-slate-800 rounded"></div>
+                    <div className="h-3 w-72 bg-slate-800 rounded hidden sm:block"></div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-28 bg-slate-800 rounded-xl"></div>
+                  <div className="h-9 w-28 bg-slate-800 rounded-xl"></div>
+                </div>
+              </div>
+
+              {/* Stats Cards Overview Skeleton */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="h-3 w-16 bg-slate-800 rounded"></div>
+                      <div className="w-4 h-4 bg-slate-800 rounded-full"></div>
+                    </div>
+                    <div className="h-8 w-12 bg-slate-800 rounded"></div>
+                    <div className="h-2 w-20 bg-slate-800 rounded"></div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Main CMS Navigation Tabs Skeleton */}
+              <div className="flex border-b border-slate-800 gap-2 pb-0.5">
+                <div className="h-10 w-36 bg-slate-800 rounded-t"></div>
+                <div className="h-10 w-44 bg-slate-800 rounded-t"></div>
+              </div>
+
+              {/* Form / Content Skeleton */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="h-6 w-48 bg-slate-800 rounded"></div>
+                <div className="space-y-3">
+                  <div className="h-3 w-1/4 bg-slate-800 rounded"></div>
+                  <div className="h-10 w-full bg-slate-800 rounded-xl"></div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-3 w-1/3 bg-slate-800 rounded"></div>
+                  <div className="h-24 w-full bg-slate-800 rounded-xl"></div>
+                </div>
+              </div>
             </div>
           }>
             <AuthorDashboard
@@ -826,9 +887,47 @@ export default function App() {
         {/* VIEW 4: REDAKSI / EDITOR CMS DASHBOARD */}
         {activeView === 'editor-cms' && currentUser && (
           <Suspense fallback={
-            <div className="max-w-4xl mx-auto py-20 text-center space-y-3">
-              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs font-semibold text-slate-500">Memuat Dashboard Redaksi...</p>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 animate-pulse">
+              {/* Dashboard Banner Header Skeleton */}
+              <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-6">
+                <div className="flex items-center gap-4 max-w-xl">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-800 shrink-0"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-28 bg-slate-800 rounded"></div>
+                    <div className="h-6 w-48 bg-slate-800 rounded"></div>
+                    <div className="h-3 w-72 bg-slate-800 rounded hidden sm:block"></div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-28 bg-slate-800 rounded-xl"></div>
+                  <div className="h-9 w-28 bg-slate-800 rounded-xl"></div>
+                </div>
+              </div>
+
+              {/* Tabs Skeleton */}
+              <div className="flex border-b border-slate-800 gap-2 pb-0.5 overflow-x-auto">
+                <div className="h-10 w-28 bg-slate-800 rounded-t shrink-0"></div>
+                <div className="h-10 w-32 bg-slate-800 rounded-t shrink-0"></div>
+                <div className="h-10 w-24 bg-slate-800 rounded-t shrink-0"></div>
+                <div className="h-10 w-28 bg-slate-800 rounded-t shrink-0"></div>
+              </div>
+
+              {/* Data Table Skeleton */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="h-6 w-48 bg-slate-800 rounded"></div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map(row => (
+                    <div key={row} className="flex items-center justify-between py-3 border-b border-slate-800/60">
+                      <div className="space-y-2 flex-1 mr-4">
+                        <div className="h-4 w-2/3 bg-slate-800 rounded"></div>
+                        <div className="h-3 w-1/3 bg-slate-800 rounded"></div>
+                      </div>
+                      <div className="h-6 w-16 bg-slate-800 rounded-full mr-4"></div>
+                      <div className="h-8 w-12 bg-slate-800 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           }>
             <EditorDashboard

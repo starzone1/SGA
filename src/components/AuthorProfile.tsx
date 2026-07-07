@@ -64,7 +64,8 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
 }) => {
   const [selectedStatusTab, setSelectedStatusTab] = useState<'semua' | 'published' | 'pending' | 'draft' | 'rejected'>('semua');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeMainTab, setActiveMainTab] = useState<'articles' | 'likes' | 'about'>('articles');
+  const [activeMainTab, setActiveMainTab] = useState<'presentations' | 'infographics' | 'documents' | 'likes' | 'about'>('about');
+  const [showAllTags, setShowAllTags] = useState(false);
   const [sortFilter, setSortFilter] = useState<'latest' | 'popular'>('latest');
 
   const createSlug = (text: string) => {
@@ -467,7 +468,7 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
 
               {/* About Tab Toggle */}
               <button
-                onClick={() => setActiveMainTab(activeMainTab === 'about' ? 'articles' : 'about')}
+                onClick={() => setActiveMainTab(activeMainTab === 'about' ? 'presentations' : 'about')}
                 className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 transition active:scale-95 flex items-center gap-1.5"
               >
                 <FileText className="w-4 h-4" />
@@ -480,90 +481,182 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
 
       {/* SlideShare Style Tab Navigation Strip */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-2 sm:px-4">
-        <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth text-xs font-bold text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth text-[13px] font-bold text-slate-500 dark:text-slate-400">
           <button
-            onClick={() => setActiveMainTab('articles')}
-            className={`py-3.5 px-2 border-b-2 transition whitespace-nowrap ${
-              activeMainTab === 'articles'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
+            onClick={() => setActiveMainTab('presentations')}
+            className={`py-3.5 px-3 border-b-2 transition whitespace-nowrap ${
+              activeMainTab === 'presentations'
+                ? 'border-violet-600 text-violet-600 dark:text-violet-400 font-extrabold'
                 : 'border-transparent hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Artikel ({allAuthorArticles.length})
+            Presentations
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab('infographics')}
+            className={`py-3.5 px-3 border-b-2 transition whitespace-nowrap ${
+              activeMainTab === 'infographics'
+                ? 'border-violet-600 text-violet-600 dark:text-violet-400 font-extrabold'
+                : 'border-transparent hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Infographics
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab('documents')}
+            className={`py-3.5 px-3 border-b-2 transition whitespace-nowrap ${
+              activeMainTab === 'documents'
+                ? 'border-violet-600 text-violet-600 dark:text-violet-400 font-extrabold'
+                : 'border-transparent hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Documents
           </button>
 
           <button
             onClick={() => setActiveMainTab('likes')}
-            className={`py-3.5 px-2 border-b-2 transition whitespace-nowrap ${
+            className={`py-3.5 px-3 border-b-2 transition whitespace-nowrap ${
               activeMainTab === 'likes'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
+                ? 'border-violet-600 text-violet-600 dark:text-violet-400 font-extrabold'
                 : 'border-transparent hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Disukai ({bookmarkedIds.length})
+            Likes
           </button>
 
           <button
             onClick={() => setActiveMainTab('about')}
-            className={`py-3.5 px-2 border-b-2 transition whitespace-nowrap ${
+            className={`py-3.5 px-3 border-b-2 transition whitespace-nowrap ${
               activeMainTab === 'about'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold'
+                ? 'border-violet-600 text-violet-600 dark:text-violet-400 font-extrabold'
                 : 'border-transparent hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Tentang / Bio
+            About
           </button>
         </div>
       </div>
 
       {/* Main Tab View Content */}
       {activeMainTab === 'about' ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 space-y-5 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Tentang {displayName}</span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Biografi resmi dan profil kontributor SGA News
-              </p>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                Personal Information
+              </h2>
             </div>
 
             {onOpenEditProfile && (currentUser?.id === foundUser?.id || currentUser?.name === displayName || currentUser?.role === 'admin') && (
               <button
                 onClick={onOpenEditProfile}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 active:scale-95"
+                className="px-4 py-2 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl shadow-sm transition active:scale-95 flex items-center gap-1.5"
               >
-                <Edit3 className="w-4 h-4" />
-                <span>Edit Bio & Profil</span>
+                <Edit className="w-4 h-4" />
+                <span>Edit Informasi</span>
               </button>
             )}
           </div>
 
-          <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-normal whitespace-pre-line">
-              {displayBio}
-            </p>
-          </div>
+          <div className="space-y-6">
+            {/* Organization / Workplace */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Organization / Workplace
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal leading-relaxed">
+                {foundUser?.organization || (isAdminProfile ? 'SGA NEWS PORTAL REDAKSI' : 'KANCAH4D | LINK KANCAH4D | SITUS KANCAH4D | ALTERNATIF KANCAH4D')}
+              </p>
+            </div>
 
-          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Tanggal Bergabung</span>
-              <span className="text-slate-800 dark:text-slate-200 font-extrabold text-sm">{joinedDate}</span>
+            {/* Occupation */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Occupation
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal leading-relaxed">
+                {foundUser?.occupation || (isAdminProfile ? 'Pemimpin Redaksi / Administrator' : 'KANCAH4D')}
+              </p>
             </div>
-            {isAdminProfile && (
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Peran Redaksi</span>
-                <span className="text-slate-800 dark:text-slate-200 font-extrabold text-sm">{displayRole.toUpperCase()}</span>
-              </div>
-            )}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Karya Tulis</span>
-              <span className="text-slate-800 dark:text-slate-200 font-extrabold text-sm">{allAuthorArticles.length} Artikel</span>
+
+            {/* Industry */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Industry
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal leading-relaxed">
+                {foundUser?.industry || (isAdminProfile ? 'Media & Jurnalisme' : 'Design')}
+              </p>
             </div>
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Total Pembaca</span>
-              <span className="text-slate-800 dark:text-slate-200 font-extrabold text-sm">{totalViews.toLocaleString('id-ID')} views</span>
+
+            {/* Website */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Website
+              </h3>
+              {(() => {
+                const webVal = foundUser?.website || (isAdminProfile ? 'https://sganews.id' : 'https://login-kancah4d.pages.dev/');
+                const displayUrl = webVal.replace(/^https?:\/\//, '');
+                return (
+                  <a
+                    href={webVal}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-semibold hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>{displayUrl}</span>
+                    <Share2 className="w-3.5 h-3.5 shrink-0" />
+                  </a>
+                );
+              })()}
+            </div>
+
+            {/* About */}
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                About
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal leading-relaxed whitespace-pre-line">
+                {displayBio}
+              </p>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2 pt-2">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Tags
+              </h3>
+              {(() => {
+                const defaultTags = ['kancah4d', 'slotgame', 'situskancah4d', 'situsviral', 'linkkancah4d', 'situsgacor'];
+                const rawTags = foundUser?.tags || (isAdminProfile ? ['sganews', 'portalberita', 'redaksi', 'indonesia', 'media', 'jurnalisme', 'informasi', 'terpercaya'] : defaultTags);
+                const visibleTags = showAllTags ? rawTags : rawTags.slice(0, 6);
+                
+                return (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {visibleTags.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-xs font-medium text-slate-700 dark:text-slate-300 shadow-sm hover:scale-105 transition duration-150"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    {rawTags.length > 6 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllTags(!showAllTags)}
+                        className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition pt-1 block"
+                      >
+                        {showAllTags ? 'See less' : 'See more'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -590,7 +683,28 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
         </div>
       ) : (
         /* ARTICLES TAB */
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header indicator for the customized tab */}
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                {activeMainTab === 'presentations' && 'Presentations & Publications'}
+                {activeMainTab === 'infographics' && 'Infographics & News Visuals'}
+                {activeMainTab === 'documents' && 'Documents & Research Papers'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {activeMainTab === 'presentations' && 'Semua karya tulis, publikasi, dan artikel ilmiah yang dibagikan oleh kontributor.'}
+                {activeMainTab === 'infographics' && 'Arsip artikel visual, poster informatif, dan infografis berita terhangat.'}
+                {activeMainTab === 'documents' && 'Kompilasi naskah berita, berkas PDF, dan dokumentasi riset jurnalisme.'}
+              </p>
+            </div>
+            <span className="self-start sm:self-center px-2.5 py-1 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-[11px] font-bold rounded-lg shrink-0">
+              {activeMainTab === 'presentations' && `${allAuthorArticles.length} Presentations`}
+              {activeMainTab === 'infographics' && `${allAuthorArticles.filter(a => a.coverImage).length} Infographics`}
+              {activeMainTab === 'documents' && `${allAuthorArticles.length > 0 ? 1 : 0} Documents`}
+            </span>
+          </div>
+
           {/* Secondary Filter & Sorting Control Strip */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
             

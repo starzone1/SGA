@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { VerifiedBadge, isUserAdminOrVerified, getAuthorAvatar } from './VerifiedBadge';
-import { Shield, Lock, PlusCircle, LogIn, LogOut, UserCheck, ArrowLeft, PenTool, Layout, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Shield, Lock, PlusCircle, LogIn, LogOut, UserCheck, ArrowLeft, PenTool, Layout, FileText, CheckCircle2, AlertCircle, Mail } from 'lucide-react';
 import { getStoredUsers, setCurrentUser } from '../utils/storage';
 import { db } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { signInUserWithAuth, signUpUserWithAuth } from '../services/firestoreService';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 interface RedaksiPortalProps {
   currentUser: User | null;
@@ -35,68 +37,46 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
   const [newBio, setNewBio] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
 
-  // Admin Account Definition
-  const ADMIN_USER: User = {
-    id: 'user-admin-owner',
-    name: 'Admin SGA Redaksi',
-    email: 'admin@sganews.id',
-    role: 'admin',
-    avatar: 'https://ik.imagekit.io/dxokd3m9y/sgaicon.png',
-    bio: 'Pemimpin Redaksi Utama & Owner SGA News Portal. Bertanggung jawab atas kebijakan jurnalistik, verifikasi berita, dan pengawasan tim redaksi.',
-    joinedDate: 'Januari 2024',
-    articlesCount: 18,
-    isVerified: true
-  };
+  // Forgot Password Modal State & Auth loading state
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    setIsAuthChecking(true);
 
     const cleanEmail = loginEmail.trim().toLowerCase();
     const cleanPass = loginPassword.trim();
 
-    if (!cleanEmail) {
-      setLoginError('Harap isi email Anda.');
+    if (!cleanEmail || !cleanPass) {
+      setLoginError('Harap isi email dan kata sandi Anda.');
+      setIsAuthChecking(false);
       return;
     }
 
-    // 1. Check Admin SGA Redaksi Credentials (Securely typed by the project owner)
-    if (cleanEmail === 'admin@sganews.id' || cleanEmail === 'admin') {
-      if (cleanPass !== 'SGA2026-Pemred-Owner') {
-        setLoginError('Sandi Pemred salah!');
-        return;
-      }
-      setCurrentUser(ADMIN_USER);
-      onUserChanged(ADMIN_USER);
-      onNavigateToView('editor-cms');
-      try {
-        window.history.pushState({ view: 'editor-cms' }, '', '/redaksi/editor');
-      } catch (e) {}
-      return;
-    }
-
-    // 2. Check Registered Users in storage
-    const storedUsers = getStoredUsers();
-    const matchedUser = storedUsers.find(u => u.email.toLowerCase() === cleanEmail);
-
-    if (matchedUser) {
-      setCurrentUser(matchedUser);
-      onUserChanged(matchedUser);
-      if (matchedUser.role === 'admin' || matchedUser.role === 'editor') {
+    try {
+      const user = await signInUserWithAuth(cleanEmail, cleanPass);
+      setCurrentUser(user);
+      onUserChanged(user);
+      
+      if (user.role === 'admin' || user.role === 'editor') {
         onNavigateToView('editor-cms');
         try {
           window.history.pushState({ view: 'editor-cms' }, '', '/redaksi/editor');
-        } catch (e) {}
+        } catch (err) {}
       } else {
         onNavigateToView('author-cms');
         try {
           window.history.pushState({ view: 'author-cms' }, '', '/redaksi/penulis');
-        } catch (e) {}
+        } catch (err) {}
       }
-      return;
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      setLoginError(error.message || 'Gagal masuk. Periksa kembali email dan kata sandi.');
+    } finally {
+      setIsAuthChecking(false);
     }
-
-    setLoginError('Akun tidak terdaftar atau sandi salah.');
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -109,48 +89,81 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       return;
     }
 
-    const newUser: User = {
-      id: 'user-' + Date.now(),
-      name: newName,
-      email: newEmail.trim(),
-      role: 'author',
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200`,
-      bio: newBio || 'Penulis Komunitas Baru di SGA News Portal.',
-      joinedDate: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
-      articlesCount: 0,
-      followersCount: 0,
-      profileLikesCount: 0,
-      followers: [],
-      isVerified: false
-    };
-
-    try {
-      if (db) {
-        await setDoc(doc(db, 'users', newUser.id), newUser);
-      }
-    } catch (err) {
-      console.error('Failed to sync user to Firestore', err);
+    if (newPassword.trim().length < 6) {
+      setLoginError('Kata sandi minimal harus 6 karakter.');
+      return;
     }
 
-    const existingUsers = getStoredUsers();
-    const updated = [...existingUsers, newUser];
-    localStorage.setItem('sga_news_users_v1', JSON.stringify(updated));
-
-    setCurrentUser(newUser);
-    onUserChanged(newUser);
-    setRegisterSuccess('Pendaftaran berhasil! Akun Penulis Komunitas Anda telah aktif.');
-    setTimeout(() => {
-      onNavigateToView('author-cms');
-      try {
-        window.history.pushState({ view: 'author-cms' }, '', '/redaksi/penulis');
-      } catch (ev) {}
-    }, 1000);
+    setIsAuthChecking(true);
+    try {
+      const user = await signUpUserWithAuth(newEmail, newPassword, newName, newBio);
+      setCurrentUser(user);
+      onUserChanged(user);
+      setRegisterSuccess('Pendaftaran berhasil! Akun Penulis Komunitas Anda telah aktif.');
+      setTimeout(() => {
+        onNavigateToView('author-cms');
+        try {
+          window.history.pushState({ view: 'author-cms' }, '', '/redaksi/penulis');
+        } catch (ev) {}
+      }, 1000);
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      setLoginError(error.message || 'Gagal mendaftar. Silakan coba lagi.');
+    } finally {
+      setIsAuthChecking(false);
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     onUserChanged(null);
   };
+
+  if (isAuthChecking) {
+    return (
+      <div id="redaksi-portal-loading-skeleton" className="min-h-[80vh] flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 bg-slate-950">
+        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-pulse">
+          {/* Left Sidebar Skeleton */}
+          <div className="md:col-span-5 bg-gradient-to-br from-slate-950 to-slate-900 p-8 flex flex-col justify-between border-r border-slate-800/60 space-y-6">
+            <div className="space-y-6">
+              <div className="h-4 w-28 bg-slate-800 rounded-md"></div>
+              <div className="space-y-3 pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-800 rounded-xl"></div>
+                  <div className="h-6 w-32 bg-slate-800 rounded-md"></div>
+                </div>
+                <div className="h-3 w-40 bg-slate-800 rounded-md"></div>
+                <div className="space-y-2 pt-2">
+                  <div className="h-3 w-full bg-slate-800 rounded-md"></div>
+                  <div className="h-3 w-3/4 bg-slate-800 rounded-md"></div>
+                </div>
+              </div>
+            </div>
+            <div className="h-3 w-48 bg-slate-800 rounded-md"></div>
+          </div>
+
+          {/* Right Content Form Skeleton */}
+          <div className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-center bg-slate-900/40 space-y-6">
+            <div className="space-y-2">
+              <div className="h-5 w-48 bg-slate-800 rounded-md"></div>
+              <div className="h-3.5 w-32 bg-slate-800 rounded-md"></div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="h-3 w-20 bg-slate-800 rounded-md"></div>
+                <div className="h-10 w-full bg-slate-800 rounded-xl"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-28 bg-slate-800 rounded-md"></div>
+                <div className="h-10 w-full bg-slate-800 rounded-xl"></div>
+              </div>
+              <div className="h-12 w-full bg-slate-800 rounded-xl mt-4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="redaksi-portal-container" className="min-h-[80vh] flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8">
@@ -301,8 +314,8 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
               {activeTab === 'login' && (
                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                   <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">Kredensial Redaksi</h4>
-                    <p className="text-xs text-slate-400">Masuk dengan akun terdaftar atau akun Pemred.</p>
+                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">SGA NEWS PORTAL</h4>
+                    <p className="text-xs text-slate-400">Login Akun SGA News Portal</p>
                   </div>
 
                   {loginError && (
@@ -315,12 +328,12 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        ID / Alamat Email Staff
+                        USERNAME / EMAIL
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder="admin@sganews.id atau nama@sganews.id"
+                        placeholder="Username"
                         value={loginEmail}
                         onChange={e => setLoginEmail(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -352,6 +365,17 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
                     <LogIn className="w-4 h-4" />
                     <span>Autentikasi & Masuk</span>
                   </button>
+
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPasswordOpen(true)}
+                      className="text-[11px] font-bold text-blue-400 hover:text-blue-300 hover:underline transition flex items-center justify-center gap-1.5 mx-auto"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      Lupa Kata Sandi? Reset di Sini
+                    </button>
+                  </div>
                 </form>
               )}
 
@@ -451,6 +475,12 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
         </div>
 
       </div>
+
+      {/* Forgot Password Modal Support */}
+      <ForgotPasswordModal 
+        isOpen={isForgotPasswordOpen} 
+        onClose={() => setIsForgotPasswordOpen(false)} 
+      />
     </div>
   );
 };

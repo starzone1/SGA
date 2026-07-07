@@ -51,12 +51,22 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [name, setName] = useState(currentUser?.name || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatar || '');
+  const [organization, setOrganization] = useState(currentUser?.organization || '');
+  const [occupation, setOccupation] = useState(currentUser?.occupation || '');
+  const [industry, setIndustry] = useState(currentUser?.industry || '');
+  const [website, setWebsite] = useState(currentUser?.website || '');
+  const [tags, setTags] = useState(currentUser?.tags?.join(', ') || '');
 
   React.useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
       setBio(currentUser.bio || '');
       setAvatarUrl(currentUser.avatar || '');
+      setOrganization(currentUser.organization || '');
+      setOccupation(currentUser.occupation || '');
+      setIndustry(currentUser.industry || '');
+      setWebsite(currentUser.website || '');
+      setTags(currentUser.tags?.join(', ') || '');
     }
   }, [currentUser]);
   
@@ -128,7 +138,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       ...currentUser,
       name: name.trim() || currentUser.name,
       avatar: avatarUrl || currentUser.avatar,
-      bio: bio.trim()
+      bio: bio.trim(),
+      organization: organization.trim(),
+      occupation: occupation.trim(),
+      industry: industry.trim(),
+      website: website.trim(),
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean)
     };
 
     try {
@@ -377,35 +392,102 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         </div>
 
         {/* Edit Name & Bio Inputs */}
-        <form onSubmit={handleSaveProfile} className="mt-5 space-y-3.5 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Nama Pengguna / Penulis
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        <form onSubmit={handleSaveProfile} className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2 no-scrollbar">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Nama Pengguna / Penulis
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Biografi Singkat Penulis
-            </label>
-            <textarea
-              rows={2}
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="Tuliskan biografi singkat Anda..."
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Biografi Singkat Penulis (Bio)
+              </label>
+              <textarea
+                rows={2}
+                value={bio}
+                onChange={e => setBio(e.target.value)}
+                placeholder="Tuliskan biografi singkat Anda..."
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Organisasi / Tempat Kerja (Organization / Workplace)
+              </label>
+              <input
+                type="text"
+                value={organization}
+                onChange={e => setOrganization(e.target.value)}
+                placeholder="Contoh: KANCAH4D | LINK KANCAH4D"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Pekerjaan (Occupation)
+              </label>
+              <input
+                type="text"
+                value={occupation}
+                onChange={e => setOccupation(e.target.value)}
+                placeholder="Contoh: Jurnalis Utama / KANCAH4D"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Bidang Industri (Industry)
+              </label>
+              <input
+                type="text"
+                value={industry}
+                onChange={e => setIndustry(e.target.value)}
+                placeholder="Contoh: Design, Media, Teknologi"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Situs Web (Website URL)
+              </label>
+              <input
+                type="url"
+                value={website}
+                onChange={e => setWebsite(e.target.value)}
+                placeholder="Contoh: https://login-kancah4d.pages.dev/"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Tags (Pisahkan dengan tanda koma)
+              </label>
+              <input
+                type="text"
+                value={tags}
+                onChange={e => setTags(e.target.value)}
+                placeholder="Contoh: kancah4d, slotgame, situsviral, linkkancah4d"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
