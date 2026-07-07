@@ -945,6 +945,7 @@ export default function App() {
           <RedaksiPortal
             currentUser={currentUser}
             onUserChanged={(newUser) => {
+              setStoredCurrentUser(newUser);
               setCurrentUser(newUser);
               resolveRoute(articles, users);
             }}

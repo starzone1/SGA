@@ -633,20 +633,8 @@ export async function signInUserWithAuth(email: string, pass: string): Promise<U
           return matchedUser; // Return matched user from Firestore fallback
         }
       } else {
-        // Passwords do not match, but since we are running in a fallback environment (Firebase Auth is not enabled),
-        // let's update their local fallback password to the one they just typed so they can log in seamlessly!
-        console.warn('Fallback login password mismatch, updating saved password to the new one for seamless access:', cleanEmail);
-        try {
-          const updatedUser: User = {
-            ...matchedUser,
-            password: cleanPass
-          };
-          await setDoc(doc(db, USERS_COL, matchedUser.id), updatedUser);
-          return updatedUser;
-        } catch (updateError) {
-          console.error('Failed to update fallback password, returning matched user anyway:', updateError);
-          return matchedUser;
-        }
+        // Passwords do not match! Throw a strict error to prevent account hijacking
+        throw new Error('Kata sandi salah! Silakan coba lagi atau reset sandi Anda.');
       }
     }
 
