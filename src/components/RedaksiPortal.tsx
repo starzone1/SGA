@@ -21,7 +21,7 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
   onNavigateToView,
   usersList
 }) => {
-  const [activeTab, setActiveTab] = useState<'login' | 'preset' | 'register'>('preset');
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -35,58 +35,17 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
   const [newBio, setNewBio] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
 
-  // Preset Accounts for Instant Switch / Quick Sign In
-  const PRESET_ACCOUNTS: User[] = [
-    {
-      id: 'user-admin-owner',
-      name: 'Admin SGA Redaksi',
-      email: 'admin@sganews.id',
-      role: 'admin',
-      avatar: 'https://ik.imagekit.io/dxokd3m9y/sgaicon.png',
-      bio: 'Pemimpin Redaksi Utama & Owner SGA News Portal. Bertanggung jawab atas kebijakan jurnalistik, verifikasi berita, dan pengawasan tim redaksi.',
-      joinedDate: 'Januari 2024',
-      articlesCount: 18,
-      isVerified: true
-    },
-    {
-      id: 'user-editor-1',
-      name: 'Dewi Redaktur',
-      email: 'editor@sganews.id',
-      role: 'editor',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=200',
-      bio: 'Editor Senior Berita Nasional & Ekonomi SGA News.',
-      joinedDate: 'Maret 2024',
-      articlesCount: 12,
-      isVerified: true
-    },
-    {
-      id: 'user-author-1',
-      name: 'Rahadian Penulis',
-      email: 'penulis@sganews.id',
-      role: 'author',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-      bio: 'Jurnalis Teknologi & Sains SGA Media.',
-      joinedDate: 'April 2024',
-      articlesCount: 8,
-      isVerified: true
-    }
-  ];
-
-  const handleSelectPreset = (user: User) => {
-    setCurrentUser(user);
-    onUserChanged(user);
-    // Auto-redirect to appropriate CMS
-    if (user.role === 'admin' || user.role === 'editor') {
-      onNavigateToView('editor-cms');
-      try {
-        window.history.pushState({ view: 'editor-cms' }, '', '/redaksi/editor');
-      } catch (e) {}
-    } else {
-      onNavigateToView('author-cms');
-      try {
-        window.history.pushState({ view: 'author-cms' }, '', '/redaksi/penulis');
-      } catch (e) {}
-    }
+  // Admin Account Definition
+  const ADMIN_USER: User = {
+    id: 'user-admin-owner',
+    name: 'Admin SGA Redaksi',
+    email: 'admin@sganews.id',
+    role: 'admin',
+    avatar: 'https://ik.imagekit.io/dxokd3m9y/sgaicon.png',
+    bio: 'Pemimpin Redaksi Utama & Owner SGA News Portal. Bertanggung jawab atas kebijakan jurnalistik, verifikasi berita, dan pengawasan tim redaksi.',
+    joinedDate: 'Januari 2024',
+    articlesCount: 18,
+    isVerified: true
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -97,19 +56,18 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
     const cleanPass = loginPassword.trim();
 
     if (!cleanEmail) {
-      setLoginError('Harap isi email/ID Anda.');
+      setLoginError('Harap isi email Anda.');
       return;
     }
 
-    // 1. Check Admin SGA Redaksi Credentials
+    // 1. Check Admin SGA Redaksi Credentials (Securely typed by the project owner)
     if (cleanEmail === 'admin@sganews.id' || cleanEmail === 'admin') {
       if (cleanPass !== 'SGA2026-Pemred-Owner') {
-        setLoginError('Sandi Pemred salah! Gunakan: SGA2026-Pemred-Owner');
+        setLoginError('Sandi Pemred salah!');
         return;
       }
-      const adminUser = PRESET_ACCOUNTS[0];
-      setCurrentUser(adminUser);
-      onUserChanged(adminUser);
+      setCurrentUser(ADMIN_USER);
+      onUserChanged(ADMIN_USER);
       onNavigateToView('editor-cms');
       try {
         window.history.pushState({ view: 'editor-cms' }, '', '/redaksi/editor');
@@ -117,26 +75,7 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       return;
     }
 
-    // 2. Check general preset accounts
-    const matchedPreset = PRESET_ACCOUNTS.find(p => p.email.toLowerCase() === cleanEmail);
-    if (matchedPreset) {
-      setCurrentUser(matchedPreset);
-      onUserChanged(matchedPreset);
-      if (matchedPreset.role === 'admin' || matchedPreset.role === 'editor') {
-        onNavigateToView('editor-cms');
-        try {
-          window.history.pushState({ view: 'editor-cms' }, '', '/redaksi/editor');
-        } catch (e) {}
-      } else {
-        onNavigateToView('author-cms');
-        try {
-          window.history.pushState({ view: 'author-cms' }, '', '/redaksi/penulis');
-        } catch (e) {}
-      }
-      return;
-    }
-
-    // 3. Check Registered Users in storage
+    // 2. Check Registered Users in storage
     const storedUsers = getStoredUsers();
     const matchedUser = storedUsers.find(u => u.email.toLowerCase() === cleanEmail);
 
@@ -157,7 +96,7 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       return;
     }
 
-    setLoginError('Akun tidak terdaftar. Pilih tab "Preset Akun" untuk masuk cepat tanpa sandi.');
+    setLoginError('Akun tidak terdaftar atau sandi salah.');
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -249,11 +188,6 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
           </div>
 
           <div className="pt-8 md:pt-0 space-y-4">
-            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 space-y-1">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Akses Penting Pemred:</p>
-              <p className="text-[11px] text-slate-300 font-medium">Email: <span className="text-blue-400 font-mono">admin@sganews.id</span></p>
-              <p className="text-[11px] text-slate-300 font-medium">Sandi: <span className="text-blue-400 font-mono">SGA2026-Pemred-Owner</span></p>
-            </div>
             <p className="text-[10px] text-slate-500">
               © 2026 SGA News Media Group. Hak Cipta Dilindungi Undang-Undang.
             </p>
@@ -335,20 +269,6 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
               <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800/80">
                 <button
                   onClick={() => {
-                    setActiveTab('preset');
-                    setLoginError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 ${
-                    activeTab === 'preset'
-                      ? 'bg-slate-900 text-white shadow-sm border border-slate-800'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  Preset Cepat
-                </button>
-                <button
-                  onClick={() => {
                     setActiveTab('login');
                     setLoginError('');
                   }}
@@ -376,45 +296,6 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
                   Daftar Penulis
                 </button>
               </div>
-
-              {/* TAB: PRESET QUICK LOGIN */}
-              {activeTab === 'preset' && (
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-tight">Pilih Preset Akun Redaksi</h4>
-                    <p className="text-xs text-slate-400">Gunakan salah satu preset resmi di bawah untuk masuk ke dashboard secara instan:</p>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {PRESET_ACCOUNTS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => handleSelectPreset(preset)}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800 hover:border-blue-900/60 text-left transition flex items-center justify-between gap-3 group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img 
-                            src={preset.avatar} 
-                            alt={preset.name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-800 shrink-0" 
-                          />
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-white flex items-center gap-1">
-                              <span>{preset.name}</span>
-                              {preset.isVerified && <VerifiedBadge size="xs" />}
-                            </div>
-                            <p className="text-[10px] text-slate-400 truncate mt-0.5">{preset.bio}</p>
-                          </div>
-                        </div>
-
-                        <span className="shrink-0 px-2 py-1 text-[9px] font-black rounded uppercase bg-blue-950/80 text-blue-400 border border-blue-900/40 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-colors">
-                          {preset.role === 'admin' ? 'PEMRED' : preset.role === 'editor' ? 'EDITOR' : 'PENULIS'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* TAB: MANUAL EMAIL LOGIN */}
               {activeTab === 'login' && (

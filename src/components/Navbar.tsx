@@ -314,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
               className="hidden sm:inline-flex px-3 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-full transition"
             >
-              Portal Redaksi
+              LOGIN AKUN
             </a>
           </div>
 
@@ -390,7 +390,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="w-full flex items-center justify-center gap-1.5 p-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 dark:border-slate-700 text-xs font-bold shadow-sm"
             >
               <ShieldCheck className="w-4 h-4 text-blue-400" />
-              <span>Portal Redaksi & Admin</span>
+              <span>LOGIN AKUN</span>
             </button>
           </div>
 

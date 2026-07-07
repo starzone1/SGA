@@ -166,7 +166,7 @@ export async function updateArticleInFirestore(
   updates: Partial<Article>
 ): Promise<void> {
   const docRef = doc(db, ARTICLES_COL, articleId);
-  await updateDoc(docRef, updates);
+  await setDoc(docRef, updates, { merge: true });
 }
 
 export async function deleteArticleFromFirestore(articleId: string): Promise<void> {
@@ -177,6 +177,18 @@ export async function deleteArticleFromFirestore(articleId: string): Promise<voi
 export async function incrementArticleViewsInFirestore(articleId: string): Promise<void> {
   try {
     const docRef = doc(db, ARTICLES_COL, articleId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      const initArt = INITIAL_ARTICLES.find(a => a.id === articleId);
+      if (initArt) {
+        const newArt = {
+          ...initArt,
+          views: (initArt.views || 0) + 1
+        };
+        await setDoc(docRef, newArt);
+      }
+      return;
+    }
     await updateDoc(docRef, {
       views: increment(1)
     });
@@ -191,6 +203,18 @@ export async function toggleArticleLikeInFirestore(
 ): Promise<void> {
   try {
     const docRef = doc(db, ARTICLES_COL, articleId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      const initArt = INITIAL_ARTICLES.find(a => a.id === articleId);
+      if (initArt) {
+        const newArt = {
+          ...initArt,
+          likes: Math.max(0, (initArt.likes || 0) + (currentlyLiked ? -1 : 1))
+        };
+        await setDoc(docRef, newArt);
+      }
+      return;
+    }
     await updateDoc(docRef, {
       likes: increment(currentlyLiked ? -1 : 1)
     });
@@ -205,6 +229,20 @@ export async function addArticleReactionInFirestore(
 ): Promise<void> {
   try {
     const docRef = doc(db, ARTICLES_COL, articleId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      const initArt = INITIAL_ARTICLES.find(a => a.id === articleId);
+      if (initArt) {
+        const reactions = { ...initArt.reactions };
+        reactions[reactionType] = (reactions[reactionType] || 0) + 1;
+        const newArt = {
+          ...initArt,
+          reactions
+        };
+        await setDoc(docRef, newArt);
+      }
+      return;
+    }
     await updateDoc(docRef, {
       [`reactions.${reactionType}`]: increment(1)
     });

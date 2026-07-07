@@ -289,8 +289,28 @@ export default function App() {
         return;
       }
 
+      // If we are looking for a deep link article but Firestore has not synchronized yet,
+      // let's defer fallback/redirects and stay in 'detail' to show the loading/connecting spinner.
+      if (!isLiveConnected) {
+        setSelectedArticleId(null);
+        setActiveView('detail');
+        return;
+      }
+
+      // If the URL has 2 or more segments and does NOT start with 'penulis' or 'kategori',
+      // then it's almost certainly a direct article path. Since it wasn't matched above even after 
+      // Firestore synchronized, let's keep it on 'detail' view with null article ID to trigger the 404 screen.
+      const isPenulisPath = pathSegments.length >= 2 && pathSegments[0].toLowerCase() === 'penulis';
+      const isCategoryPath = pathSegments.length >= 2 && pathSegments[0].toLowerCase() === 'kategori';
+      
+      if (pathSegments.length >= 2 && !isPenulisPath && !isCategoryPath) {
+        setSelectedArticleId(null);
+        setActiveView('detail');
+        return;
+      }
+
       // Check if path directly matches an Author slug/name/id (e.g., /admin-sga-redaksi)
-      const rawTitleOrId = pathSegments[0];
+      const rawTitleOrId = isPenulisPath ? pathSegments[1] : pathSegments[0];
       const slugOfPath = createSlug(rawTitleOrId);
 
       if (
@@ -411,7 +431,7 @@ export default function App() {
   // Synchronize route whenever articles, users, or location pathname changes
   useEffect(() => {
     resolveRoute(articles, users);
-  }, [articles, users]);
+  }, [articles, users, isLiveConnected]);
 
   // Sync route on browser back/forward (popstate)
   useEffect(() => {
@@ -423,7 +443,7 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [articles, users]);
+  }, [articles, users, isLiveConnected]);
 
   // Automatically sync articles with latest user verification badges, roles, and avatars
   const syncedArticles = React.useMemo(() => {
@@ -720,6 +740,12 @@ export default function App() {
               allArticles={syncedArticles}
               onSelectAuthor={handleSelectAuthor}
             />
+          ) : !isLiveConnected ? (
+            /* Loading State when Firestore is Synchronizing */
+            <div className="max-w-2xl mx-auto my-16 py-16 px-6 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse mt-4">Menghubungkan ke Redaksi SGA...</p>
+            </div>
           ) : (
             /* 404 State when Article is Not Found */
             <div className="max-w-2xl mx-auto my-8 py-14 px-6 text-center space-y-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
