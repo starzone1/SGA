@@ -1,8 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
+let aiInstance: any = null;
 
-let aiInstance: GoogleGenAI | null = null;
-
-function getAiClient(): GoogleGenAI | null {
+async function getAiClient(): Promise<any | null> {
   if (aiInstance) return aiInstance;
   // In browser, process.env or import.meta.env may or may not have GEMINI_API_KEY
   const apiKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) 
@@ -10,6 +8,7 @@ function getAiClient(): GoogleGenAI | null {
 
   if (apiKey) {
     try {
+      const { GoogleGenAI } = await import('@google/genai');
       aiInstance = new GoogleGenAI({ apiKey });
       return aiInstance;
     } catch (e) {
@@ -21,7 +20,7 @@ function getAiClient(): GoogleGenAI | null {
 }
 
 export async function generateNewsHeadlineAndExcerpt(topicOrDraft: string, category: string): Promise<{ titles: string[]; excerpt: string }> {
-  const client = getAiClient();
+  const client = await getAiClient();
   
   if (!client) {
     // Smart fallback if API Key is not set
@@ -77,7 +76,7 @@ Format output JSON persis seperti berikut tanpa tanda backtick markdown:
 }
 
 export async function summarizeArticleText(fullContent: string): Promise<string> {
-  const client = getAiClient();
+  const client = await getAiClient();
   if (!client) {
     return 'Garis besar artikel: Membahas poin-poin utama perkembangan berita terkini dengan dampak strategis bagi pembaca.';
   }

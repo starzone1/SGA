@@ -1,5 +1,4 @@
 import { Article } from '../types';
-import { GoogleGenAI } from '@google/genai';
 import { deleteArticleFromFirestore, deleteUserAccountAndArticlesFromFirestore } from './firestoreService';
 
 export interface CrawlerAuditResult {
@@ -9,15 +8,16 @@ export interface CrawlerAuditResult {
   auditTimestamp: string;
 }
 
-let aiInstance: GoogleGenAI | null = null;
+let aiInstance: any = null;
 
-function getAiClient(): GoogleGenAI | null {
+async function getAiClient(): Promise<any | null> {
   if (aiInstance) return aiInstance;
   const apiKey = (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) 
     || (import.meta as any).env?.VITE_GEMINI_API_KEY;
 
   if (apiKey) {
     try {
+      const { GoogleGenAI } = await import('@google/genai');
       aiInstance = new GoogleGenAI({ apiKey });
       return aiInstance;
     } catch (e) {
@@ -62,7 +62,7 @@ function fallbackKeywordAudit(title: string, content: string): CrawlerAuditResul
  * Merayapi (crawl) dan mengaudit konten artikel berdasarkan Google Safety & Publisher Policy.
  */
 export async function auditArticleWithGoogleCrawler(article: Article): Promise<CrawlerAuditResult> {
-  const client = getAiClient();
+  const client = await getAiClient();
 
   if (!client) {
     return fallbackKeywordAudit(article.title, article.content);
