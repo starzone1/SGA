@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Article } from '../types';
 import { generateSitemapXml, downloadSitemapFile, copySitemapToClipboard } from '../utils/sitemap';
+import { createSlug } from '../utils/seo';
 import { 
   X, 
   FileCode, 
@@ -139,18 +140,22 @@ export const SitemapModal: React.FC<SitemapModalProps> = ({
         <div className="p-6 max-h-[380px] overflow-y-auto">
           {activeTab === 'preview' && (
             <div className="space-y-3">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <span className="text-emerald-400 font-bold font-mono">1. Halaman Beranda / Root</span>
                   <p className="text-slate-400 font-mono text-[11px] truncate">{baseUrl}/</p>
                 </div>
-                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-mono">Priority: 1.0</span>
+                <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0">
+                  <span>Lastmod: {new Date().toISOString().split('T')[0]}</span>
+                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-mono">Priority: 1.0</span>
+                </div>
               </div>
 
               {publishedArticles.map((art, idx) => {
-                const authorSlug = art.authorName ? art.authorName.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-') : 'penulis';
-                const titleSlug = art.title.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-');
+                const authorSlug = createSlug(art.authorName || 'penulis');
+                const titleSlug = art.slug ? createSlug(art.slug) : (createSlug(art.title) || art.id);
                 const articleUrl = `${baseUrl}/${authorSlug}/${titleSlug}`;
+                const lastmodDate = (art.updatedAt || art.publishedAt || art.createdAt || new Date().toISOString()).split('T')[0];
 
                 return (
                   <div key={art.id} className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 hover:border-slate-700 text-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -167,7 +172,7 @@ export const SitemapModal: React.FC<SitemapModalProps> = ({
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 shrink-0">
-                      <span>Lastmod: {(art.publishedAt || art.createdAt).split('T')[0]}</span>
+                      <span>Lastmod: {lastmodDate}</span>
                       <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
                         Priority: {art.isFeatured || art.isBreaking ? '0.9' : '0.8'}
                       </span>

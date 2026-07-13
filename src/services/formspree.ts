@@ -16,7 +16,7 @@ export async function sendEditorialNotificationFormspree(
 ): Promise<{ success: boolean; message: string }> {
   // Use VITE_FORMSPREE_FORM_ID from environment or default form ID
   const envFormId = (import.meta as any).env?.VITE_FORMSPREE_FORM_ID;
-  const formId = envFormId || 'xknkyyy';
+  const formId = envFormId || 'mvzjdbov';
   const endpoint = `https://formspree.io/f/${formId}`;
 
   try {
