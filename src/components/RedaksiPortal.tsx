@@ -74,7 +74,16 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
-      setLoginError(error.message || 'Gagal masuk. Periksa kembali email dan kata sandi.');
+      let errMsg = error.message || 'Gagal masuk. Periksa kembali email dan kata sandi.';
+      if (
+        errMsg.toLowerCase().includes('quota') || 
+        errMsg.toLowerCase().includes('limit exceeded') || 
+        errMsg.toLowerCase().includes('exceeded') || 
+        errMsg.toLowerCase().includes('403')
+      ) {
+        errMsg = '⚠️ Batas kuota harian database gratis (Firebase Firestore) SGA News telah terlampaui hari ini karena tingginya aktivitas pembaca dan Google Crawler. Silakan hubungi Pemred untuk upgrade ke paket Blaze (pay-as-you-go) di Firebase Console agar website tidak terbatasi harian, atau tunggu reset kuota otomatis oleh Google dalam 24 jam.';
+      }
+      setLoginError(errMsg);
     } finally {
       setIsAuthChecking(false);
     }
@@ -115,7 +124,16 @@ export const RedaksiPortal: React.FC<RedaksiPortalProps> = ({
       }, 1000);
     } catch (error: any) {
       console.error('Sign up error:', error);
-      setLoginError(error.message || 'Gagal mendaftar. Silakan coba lagi.');
+      let errMsg = error.message || 'Gagal mendaftar. Silakan coba lagi.';
+      if (
+        errMsg.toLowerCase().includes('quota') || 
+        errMsg.toLowerCase().includes('limit exceeded') || 
+        errMsg.toLowerCase().includes('exceeded') || 
+        errMsg.toLowerCase().includes('403')
+      ) {
+        errMsg = '⚠️ Batas kuota harian database gratis (Firebase Firestore) SGA News telah terlampaui hari ini karena tingginya aktivitas pembaca dan Google Crawler. Silakan hubungi Pemred untuk upgrade ke paket Blaze (pay-as-you-go) di Firebase Console agar website tidak terbatasi harian, atau tunggu reset kuota otomatis oleh Google dalam 24 jam.';
+      }
+      setLoginError(errMsg);
     } finally {
       setIsAuthChecking(false);
     }

@@ -23,10 +23,197 @@ import {
 import { db, auth } from '../lib/firebase';
 import { Article, ArticleComment, User, ArticleReaction, Category, SecureResetRequest } from '../types';
 import { INITIAL_ARTICLES, INITIAL_COMMENTS, INITIAL_USERS } from '../data/initialData';
+import { getStoredArticles, saveArticles, getStoredUsers, saveStoredUser } from '../utils/storage';
 
 const ARTICLES_COL = 'articles';
 const COMMENTS_COL = 'comments';
 const USERS_COL = 'users';
+
+// --- TIME-BASED CACHE LAYER FOR NO-COST UNLIMITED SCALING (SPARK PLAN SAFE) ---
+interface CacheStore {
+  articles: {
+    data: Article[] | null;
+    lastFetched: number;
+  };
+  users: {
+    data: User[] | null;
+    lastFetched: number;
+  };
+  comments: Record<string, {
+    data: ArticleComment[];
+    lastFetched: number;
+  }>;
+}
+
+const dbCache: CacheStore = {
+  articles: { data: null, lastFetched: 0 },
+  users: { data: null, lastFetched: 0 },
+  comments: {}
+};
+
+const CACHE_DURATION = 15 * 60 * 1000; // 15 Minutes Cache Lifetime
+
+// Background fetch helpers to fetch once and update memory & local caches
+async function fetchArticlesAndCache(): Promise<Article[]> {
+  const now = Date.now();
+  if (dbCache.articles.data && (now - dbCache.articles.lastFetched < CACHE_DURATION)) {
+    return dbCache.articles.data;
+  }
+
+  try {
+    const articlesRef = collection(db, ARTICLES_COL);
+    const snapshot = await getDocs(articlesRef);
+    
+    const articles: Article[] = [];
+    const idMap = new Set<string>();
+    const slugMap = new Set<string>();
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as Article;
+      if (data && (data.category as string) !== 'Politik' && docSnap.id !== 'art-4') {
+        const cat = (data.category as string) === 'Opini' ? 'Hiburan' : data.category;
+        const artObj: Article = {
+          ...data,
+          category: cat as Category,
+          id: docSnap.id
+        };
+        articles.push(artObj);
+        idMap.add(docSnap.id);
+        if (artObj.slug) slugMap.add(artObj.slug);
+      }
+    });
+
+    // Merge baseline initial articles
+    INITIAL_ARTICLES.forEach((initArt) => {
+      if (!idMap.has(initArt.id) && (!initArt.slug || !slugMap.has(initArt.slug))) {
+        articles.push(initArt);
+        idMap.add(initArt.id);
+      }
+    });
+
+    // Merge any unique local articles from LocalStorage
+    try {
+      const localArts = getStoredArticles();
+      localArts.forEach((la) => {
+        if (la && la.id && !idMap.has(la.id)) {
+          articles.push(la);
+          idMap.add(la.id);
+        }
+      });
+    } catch (e) {}
+
+    // Sort by date descending
+    articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    dbCache.articles.data = articles;
+    dbCache.articles.lastFetched = now;
+
+    // Save to LocalStorage as hard backup
+    try {
+      saveArticles(articles);
+    } catch (e) {}
+
+    return articles;
+  } catch (error) {
+    console.warn('[Firestore Cache] Quota or connection issue fetching articles, using localStorage backup instead.');
+    const local = getStoredArticles();
+    dbCache.articles.data = local;
+    return local;
+  }
+}
+
+async function fetchUsersAndCache(): Promise<User[]> {
+  const now = Date.now();
+  if (dbCache.users.data && (now - dbCache.users.lastFetched < CACHE_DURATION)) {
+    return dbCache.users.data;
+  }
+
+  try {
+    const usersRef = collection(db, USERS_COL);
+    const snapshot = await getDocs(usersRef);
+
+    const users: User[] = [];
+    const userIds = new Set<string>();
+
+    snapshot.forEach((docSnap) => {
+      users.push({
+        ...(docSnap.data() as User),
+        id: docSnap.id
+      });
+      userIds.add(docSnap.id);
+    });
+
+    INITIAL_USERS.forEach((initUsr) => {
+      if (!userIds.has(initUsr.id)) {
+        users.push(initUsr);
+        userIds.add(initUsr.id);
+      }
+    });
+
+    // Merge local storage users
+    try {
+      const localUsers = getStoredUsers();
+      localUsers.forEach((lu) => {
+        if (lu && lu.id && !userIds.has(lu.id)) {
+          users.push(lu);
+          userIds.add(lu.id);
+        }
+      });
+    } catch (e) {}
+
+    // Sync to localStorage
+    try {
+      users.forEach((u) => {
+        saveStoredUser(u);
+      });
+    } catch (e) {}
+
+    dbCache.users.data = users;
+    dbCache.users.lastFetched = now;
+
+    return users;
+  } catch (error) {
+    console.warn('[Firestore Cache] Quota or connection issue fetching users, using localStorage backup.');
+    const local = getStoredUsers();
+    dbCache.users.data = local;
+    return local;
+  }
+}
+
+async function fetchCommentsAndCache(articleId: string): Promise<ArticleComment[]> {
+  const now = Date.now();
+  const cached = dbCache.comments[articleId];
+  if (cached && (now - cached.lastFetched < CACHE_DURATION)) {
+    return cached.data;
+  }
+
+  try {
+    const commentsRef = collection(db, COMMENTS_COL);
+    const q = query(commentsRef, where('articleId', '==', articleId));
+    const snapshot = await getDocs(q);
+
+    const comments: ArticleComment[] = [];
+    snapshot.forEach((docSnap) => {
+      comments.push({
+        ...(docSnap.data() as ArticleComment),
+        id: docSnap.id
+      });
+    });
+
+    comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    dbCache.comments[articleId] = {
+      data: comments,
+      lastFetched: now
+    };
+
+    return comments;
+  } catch (error) {
+    console.warn(`[Firestore Cache] Quota/connection issue fetching comments for ${articleId}.`);
+    const fallbackComments = INITIAL_COMMENTS.filter(c => c.articleId === articleId);
+    return fallbackComments;
+  }
+}
 
 // --- SEED INITIAL DATA IF FIRESTORE IS EMPTY ---
 let isSeeding = false;
@@ -84,69 +271,21 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
 // --- ARTICLES REAL-TIME SYNC & OPERATIONS ---
 
 export function subscribeToArticles(onUpdate: (articles: Article[]) => void): () => void {
-  const articlesRef = collection(db, ARTICLES_COL);
+  // 1. Immediately return currently stored articles from LocalStorage to load instantly
+  const local = getStoredArticles();
+  onUpdate(local);
 
-  // Initial check & seed trigger
-  getDocs(articlesRef).then((snapshot) => {
-    if (snapshot.empty) {
-      onUpdate(INITIAL_ARTICLES);
-      seedInitialDataIfEmpty();
-    }
+  // 2. Fetch or reuse memory cache
+  fetchArticlesAndCache().then((articles) => {
+    onUpdate(articles);
   }).catch((err) => {
-    console.error('Error checking articles collection:', err);
-    onUpdate(INITIAL_ARTICLES);
+    console.error('Cache fetch articles failed:', err);
+    onUpdate(getStoredArticles());
   });
 
-  const unsubscribe = onSnapshot(
-    articlesRef,
-    (snapshot) => {
-      if (snapshot.empty) {
-        onUpdate(INITIAL_ARTICLES);
-        return;
-      }
-      const articles: Article[] = [];
-      const idMap = new Set<string>();
-      const slugMap = new Set<string>();
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as Article;
-        if (data && (data.category as string) !== 'Politik' && docSnap.id !== 'art-4') {
-          const cat = (data.category as string) === 'Opini' ? 'Hiburan' : data.category;
-          const artObj: Article = {
-            ...data,
-            category: cat as Category,
-            id: docSnap.id
-          };
-          articles.push(artObj);
-          idMap.add(docSnap.id);
-          if (artObj.slug) slugMap.add(artObj.slug);
-        }
-      });
-
-      // Ensure any INITIAL_ARTICLES missing from Firestore are merged and seeded
-      INITIAL_ARTICLES.forEach((initArt) => {
-        if (!idMap.has(initArt.id) && (!initArt.slug || !slugMap.has(initArt.slug))) {
-          articles.push(initArt);
-          idMap.add(initArt.id);
-          // Sync missing initial article to Firestore
-          try {
-            setDoc(doc(db, ARTICLES_COL, initArt.id), initArt, { merge: true }).catch(() => {});
-          } catch (e) {}
-        }
-      });
-
-      // Sort by createdAt descending
-      articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      onUpdate(articles);
-    },
-    (error) => {
-      console.error('Firestore articles snapshot error:', error);
-      onUpdate(INITIAL_ARTICLES);
-    }
-  );
-
-  return unsubscribe;
+  // Since we use background fetch and cache, we don't need persistent onSnapshot active listeners.
+  // This saves thousands of read units! We return a simple no-op function.
+  return () => {};
 }
 
 export async function addArticleToFirestore(
@@ -162,8 +301,29 @@ export async function addArticleToFirestore(
     reactions: { suka: 0, inspiratif: 0, haru: 0, kaget: 0 }
   };
 
-  const docRef = doc(db, ARTICLES_COL, id);
-  await setDoc(docRef, newArticle);
+  // 1. Instantly update LocalStorage and in-memory cache
+  try {
+    const localArts = getStoredArticles();
+    const updated = [newArticle, ...localArts];
+    saveArticles(updated);
+    
+    if (dbCache.articles.data) {
+      dbCache.articles.data = [newArticle, ...dbCache.articles.data];
+    } else {
+      dbCache.articles.data = updated;
+    }
+    dbCache.articles.lastFetched = Date.now();
+  } catch (e) {
+    console.warn('LocalStorage and memory cache update failed on add:', e);
+  }
+
+  // 2. Attempt background Firestore write
+  try {
+    const docRef = doc(db, ARTICLES_COL, id);
+    await setDoc(docRef, newArticle);
+  } catch (error: any) {
+    console.error('Failed to add article to Firestore (using LocalStorage fallback instead):', error);
+  }
   return newArticle;
 }
 
@@ -171,13 +331,65 @@ export async function updateArticleInFirestore(
   articleId: string, 
   updates: Partial<Article>
 ): Promise<void> {
-  const docRef = doc(db, ARTICLES_COL, articleId);
-  await setDoc(docRef, updates, { merge: true });
+  // 1. Instantly update LocalStorage and in-memory cache
+  try {
+    const localArts = getStoredArticles();
+    const idx = localArts.findIndex(a => a.id === articleId);
+    if (idx !== -1) {
+      localArts[idx] = { ...localArts[idx], ...updates };
+      saveArticles(localArts);
+      
+      if (dbCache.articles.data) {
+        const cIdx = dbCache.articles.data.findIndex(a => a.id === articleId);
+        if (cIdx !== -1) {
+          dbCache.articles.data[cIdx] = { ...dbCache.articles.data[cIdx], ...updates };
+        }
+      }
+    } else {
+      const original = INITIAL_ARTICLES.find(a => a.id === articleId);
+      if (original) {
+        const newArt = { ...original, ...updates };
+        localArts.push(newArt);
+        saveArticles(localArts);
+        if (dbCache.articles.data) {
+          dbCache.articles.data.push(newArt);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('LocalStorage and memory cache update failed on edit:', e);
+  }
+
+  // 2. Attempt background Firestore write
+  try {
+    const docRef = doc(db, ARTICLES_COL, articleId);
+    await setDoc(docRef, updates, { merge: true });
+  } catch (error: any) {
+    console.error('Failed to update article in Firestore (using LocalStorage fallback):', error);
+  }
 }
 
 export async function deleteArticleFromFirestore(articleId: string): Promise<void> {
-  const docRef = doc(db, ARTICLES_COL, articleId);
-  await deleteDoc(docRef);
+  // 1. Instantly update LocalStorage and in-memory cache
+  try {
+    const localArts = getStoredArticles();
+    const filtered = localArts.filter(a => a.id !== articleId);
+    saveArticles(filtered);
+    
+    if (dbCache.articles.data) {
+      dbCache.articles.data = dbCache.articles.data.filter(a => a.id !== articleId);
+    }
+  } catch (e) {
+    console.warn('LocalStorage and memory cache update failed on delete:', e);
+  }
+
+  // 2. Attempt background Firestore delete
+  try {
+    const docRef = doc(db, ARTICLES_COL, articleId);
+    await deleteDoc(docRef);
+  } catch (error: any) {
+    console.error('Failed to delete article from Firestore (using LocalStorage fallback):', error);
+  }
 }
 
 export async function incrementArticleViewsInFirestore(articleId: string): Promise<void> {
@@ -263,33 +475,22 @@ export function subscribeToArticleComments(
   articleId: string, 
   onUpdate: (comments: ArticleComment[]) => void
 ): () => void {
-  const commentsRef = collection(db, COMMENTS_COL);
-  const q = query(commentsRef, where('articleId', '==', articleId));
+  // 1. Immediately return currently cached comments (if any) or local fallback
+  const cached = dbCache.comments[articleId];
+  if (cached) {
+    onUpdate(cached.data);
+  } else {
+    onUpdate(INITIAL_COMMENTS.filter(c => c.articleId === articleId));
+  }
 
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      const comments: ArticleComment[] = [];
-      snapshot.forEach((docSnap) => {
-        comments.push({
-          ...(docSnap.data() as ArticleComment),
-          id: docSnap.id
-        });
-      });
+  // 2. Fetch or update cache in background
+  fetchCommentsAndCache(articleId).then((comments) => {
+    onUpdate(comments);
+  }).catch(() => {
+    onUpdate(INITIAL_COMMENTS.filter(c => c.articleId === articleId));
+  });
 
-      // Sort comments by createdAt descending
-      comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      onUpdate(comments);
-    },
-    (error) => {
-      console.error('Firestore comments snapshot error:', error);
-      const fallbackComments = INITIAL_COMMENTS.filter(c => c.articleId === articleId);
-      onUpdate(fallbackComments);
-    }
-  );
-
-  return unsubscribe;
+  return () => {};
 }
 
 export async function addCommentToFirestore(
@@ -309,53 +510,44 @@ export async function addCommentToFirestore(
     likes: 0
   };
 
-  const docRef = doc(db, COMMENTS_COL, id);
-  await setDoc(docRef, newComment);
+  // Instantly push to memory cache so user sees their comment appear immediately!
+  const cached = dbCache.comments[articleId];
+  if (cached) {
+    cached.data = [newComment, ...cached.data];
+    cached.lastFetched = Date.now();
+  } else {
+    dbCache.comments[articleId] = {
+      data: [newComment],
+      lastFetched: Date.now()
+    };
+  }
+
+  // Attempt to write in the background
+  try {
+    const docRef = doc(db, COMMENTS_COL, id);
+    await setDoc(docRef, newComment);
+  } catch (error) {
+    console.error('Failed to add comment to Firestore (stored in local cache):', error);
+  }
   return newComment;
 }
 
 // --- USERS REAL-TIME SYNC & OPERATIONS ---
 
 export function subscribeToUsers(onUpdate: (users: User[]) => void): () => void {
-  const usersRef = collection(db, USERS_COL);
+  // 1. Immediately return local users from localStorage
+  const local = getStoredUsers();
+  onUpdate(local);
 
-  const unsubscribe = onSnapshot(
-    usersRef,
-    (snapshot) => {
-      if (snapshot.empty) {
-        onUpdate(INITIAL_USERS);
-        return;
-      }
-      const users: User[] = [];
-      const userIds = new Set<string>();
+  // 2. Fetch or reuse memory cache
+  fetchUsersAndCache().then((users) => {
+    onUpdate(users);
+  }).catch((err) => {
+    console.error('Cache fetch users failed:', err);
+    onUpdate(getStoredUsers());
+  });
 
-      snapshot.forEach((docSnap) => {
-        users.push({
-          ...(docSnap.data() as User),
-          id: docSnap.id
-        });
-        userIds.add(docSnap.id);
-      });
-
-      INITIAL_USERS.forEach((initUsr) => {
-        if (!userIds.has(initUsr.id)) {
-          users.push(initUsr);
-          userIds.add(initUsr.id);
-          try {
-            setDoc(doc(db, USERS_COL, initUsr.id), initUsr, { merge: true }).catch(() => {});
-          } catch (e) {}
-        }
-      });
-
-      onUpdate(users);
-    },
-    (error) => {
-      console.error('Firestore users snapshot error:', error);
-      onUpdate(INITIAL_USERS);
-    }
-  );
-
-  return unsubscribe;
+  return () => {};
 }
 
 export async function verifyUserLoginInFirestore(userId: string): Promise<{ isValid: boolean; user?: User; message?: string }> {
