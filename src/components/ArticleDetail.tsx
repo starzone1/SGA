@@ -59,6 +59,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   const [newCommentText, setNewCommentText] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   
   // AI summary
   const [aiSummary, setAiSummary] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     article.reactions || { suka: 0, inspiratif: 0, haru: 0, kaget: 0 }
   );
 
-  // Floating Back to Top scroll listener (appears after 500px scroll)
+  // Floating Back to Top & Scroll Progress listener
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 500) {
@@ -79,11 +80,20 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       } else {
         setShowBackToTop(false);
       }
+
+      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalScroll > 0) {
+        const progress = (window.scrollY / totalScroll) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      } else {
+        setScrollProgress(0);
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [article.id]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -194,6 +204,14 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      {/* Scroll Progress Bar at the top of the viewport */}
+      <div className="fixed top-0 left-0 w-full h-1 z-[99999] pointer-events-none bg-slate-200/20 dark:bg-slate-800/20">
+        <div 
+          className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-400 transition-all duration-100 ease-out shadow-[0_1px_8px_rgba(37,99,235,0.4)]"
+          style={{ width: `${scrollProgress}%` }}
+        />
+      </div>
+
       {/* Google Search Central Compliant NewsArticle JSON-LD Structured Data */}
       {jsonLdString && (
         <script

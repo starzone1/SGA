@@ -33,3 +33,20 @@
   animation-play-state: paused;
 }
 
+@keyframes shine-sweep {
+  0% {
+    left: -150%;
+  }
+  50% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+.animate-shine-sweep {
+  animation: shine-sweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+

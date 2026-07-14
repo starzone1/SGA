@@ -57,18 +57,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       </div>
 
       {/* Article Info */}
-      <div className="p-3.5 sm:p-5 flex flex-col flex-1 justify-between space-y-2.5">
+      <div className="p-3 sm:p-5 flex flex-col flex-1 justify-between space-y-2.5">
         <div className="space-y-1.5">
           <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
             {article.title}
           </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed font-normal">
+          <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed font-normal">
             {article.excerpt}
           </p>
         </div>
 
         {/* Footer Meta */}
-        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+        <div className="pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
           <div 
             onClick={(e) => {
               if (onSelectAuthor) {
@@ -76,7 +76,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 onSelectAuthor(article.authorId, article.authorName);
               }
             }}
-            className={`flex items-center gap-1.5 shrink-0 min-w-0 ${onSelectAuthor ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer group/author' : ''}`}
+            className={`flex items-center gap-1 sm:gap-1.5 shrink-0 min-w-0 ${onSelectAuthor ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer group/author' : ''}`}
           >
             <img 
               src={getOptimizedImageUrl(getAuthorAvatar(article.authorAvatar, article.authorRole, article.authorName), 80, 75)} 
@@ -85,20 +85,20 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               decoding="async"
               className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover shrink-0" 
             />
-            <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover/author:text-blue-600 dark:group-hover/author:text-blue-400 truncate max-w-[90px] sm:max-w-[110px] transition-colors flex items-center gap-1">
+            <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover/author:text-blue-600 dark:group-hover/author:text-blue-400 truncate max-w-[80px] sm:max-w-[110px] transition-colors flex items-center gap-1">
               <span className="truncate">{article.authorName}</span>
               {isUserAdminOrVerified(article.authorRole, article.authorName, article.isVerified) && <VerifiedBadge size="xs" />}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[10px] shrink-0 text-slate-400">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+          <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] shrink-0 text-slate-400">
+            <span className="flex items-center gap-0.5 sm:gap-1">
+              <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               {new Date(article.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
             </span>
             <span>•</span>
-            <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
+            <span className="flex items-center gap-0.5 sm:gap-1">
+              <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               {article.views}
             </span>
           </div>

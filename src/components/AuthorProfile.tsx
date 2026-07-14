@@ -668,7 +668,7 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
               Belum ada artikel tersimpan.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {allArticles.filter(a => bookmarkedIds.includes(a.id)).map(article => (
                 <ArticleCard
                   key={article.id}
@@ -828,7 +828,7 @@ export const AuthorProfile: React.FC<AuthorProfileProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {sortedArticles.map((article) => {
                 const canEditThisArticle = isOwnerOrAdmin || (currentUser && (currentUser.id === article.authorId || currentUser.name.toLowerCase() === article.authorName.toLowerCase()));
 

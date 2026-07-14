@@ -14,6 +14,7 @@ import { AuthorProfile } from './components/AuthorProfile';
 import { Footer } from './components/Footer';
 import { GoogleAdUnit } from './components/GoogleAdUnit';
 import { RedaksiPortal } from './components/RedaksiPortal';
+import { BatmanPromoLauncher } from './components/BatmanPromoLauncher';
 import { Search } from 'lucide-react';
 
 // Lazy load heavy CMS Dashboards & Modals to optimize initial bundle size & PageSpeed
@@ -711,7 +712,7 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     {filteredArticles.map((art) => (
                       <ArticleCard
                         key={art.id}
@@ -1041,6 +1042,9 @@ export default function App() {
 
       {/* Floating Bottom Sticky Google AdSense Banner */}
       <GoogleAdUnit position="bottom-sticky" />
+
+      {/* Premium Batman138 Floating Action & Pop-up Promo */}
+      <BatmanPromoLauncher />
 
     </div>
   );
