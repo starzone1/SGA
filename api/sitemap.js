@@ -125,7 +125,6 @@ export default async function handler(req, res) {
       { author: 'kancah4d-official', slug: 'kancah4d-mengenal-tren-pencarian-digital-dan-fenomena-komunitas-kancah4d-di-kalangan-pengguna-internet', priority: '0.9' },
       { author: 'jeje', slug: 'fenomena-micro-retirement-generasi-z-mulai-ambil-pensiun-dini-tiap-5-tahun', priority: '0.9' },
       { author: 'bandi', slug: 'memasuki-paruh-kedua-2026-lompatan-besar-ai-fisik-hingga-kebutuhan-infrastruktur-digital-global-kancah4d', priority: '0.9' },
-      { author: 'kancahtoto', slug: 'lompatan-teknologi-2026-indonesia-garap-riset-ai-dan-quantum-computing', priority: '0.8' },
       { author: 'siti-rahma-mikom', slug: 'transformasi-ekonomi-digital-indonesia-2026-proyeksi-pertumbuhan-umkm-berbasis-ai', priority: '0.9' },
       { author: 'admin-sga-redaksi', slug: 'timnas-sepak-bola-indonesia-tembus-babak-kualifikasi-final-kejuaraan-asia-2026', priority: '0.9' },
       { author: 'budi-santoso', slug: 'peluncuran-satelit-komunikasi-nusantara-3-sukses-mengorbit-di-ketinggian-geostasioner', priority: '0.8' },
@@ -133,7 +132,7 @@ export default async function handler(req, res) {
       { author: 'siti-rahma-mikom', slug: 'panduan-gaya-hidup-sehat-efektivitas-metode-meditasi-dan-mindful-living-di-era-serba-cepat', priority: '0.8' }
     ];
 
-    const authors = ['kancah4d-official', 'jeje', 'bandi', 'kancahtoto', 'siti-rahma-mikom', 'budi-santoso', 'admin-sga-redaksi'];
+    const authors = ['kancah4d-official', 'jeje', 'bandi', 'siti-rahma-mikom', 'budi-santoso', 'admin-sga-redaksi'];
     
     authors.forEach((name) => {
       urlset.push({

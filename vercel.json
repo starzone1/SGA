@@ -57,7 +57,7 @@
     },
     {
       "source": "/((?!assets/|sitemap|robots|favicon|.*\\.(?:js|css|json|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot|xml|xsl|txt)).*)",
-      "destination": "/index.html"
+      "destination": "/api/render"
     }
   ]
 }

@@ -34,6 +34,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
+  const [isRouteUnrecognized, setIsRouteUnrecognized] = useState<boolean>(false);
   
   // Views
   const [activeView, setActiveView] = useState<'home' | 'detail' | 'author-cms' | 'editor-cms' | 'author-profile' | 'redaksi-portal'>('home');
@@ -122,6 +123,7 @@ export default function App() {
       if (art) {
         setSelectedArticleId(art.id);
         setActiveView('detail');
+        setIsRouteUnrecognized(false);
         try {
           const authorSlug = createSlug(art.authorName || 'penulis');
           const articleSlug = art.slug ? createSlug(art.slug) : createSlug(art.title);
@@ -137,6 +139,7 @@ export default function App() {
       setSelectedArticleId(null);
       setSelectedAuthorId(null);
       setSelectedAuthorName(null);
+      setIsRouteUnrecognized(false);
       return;
     }
 
@@ -153,6 +156,7 @@ export default function App() {
           setSelectedAuthorId('user-admin-owner');
           setSelectedAuthorName('Admin SGA Redaksi');
           setActiveView('author-profile');
+          setIsRouteUnrecognized(false);
           try {
             window.history.replaceState({ view: 'author-profile', authorId: 'user-admin-owner', authorName: 'Admin SGA Redaksi' }, '', '/admin-sga-redaksi');
           } catch (e) {}
@@ -175,6 +179,7 @@ export default function App() {
         setSelectedAuthorId(resolvedAuthorId);
         setSelectedAuthorName(resolvedAuthorName);
         setActiveView('author-profile');
+        setIsRouteUnrecognized(u ? false : true);
         try {
           const authorSlug = createSlug(resolvedAuthorName);
           window.history.replaceState({ view: 'author-profile', authorId: resolvedAuthorId, authorName: resolvedAuthorName }, '', '/' + (authorSlug || name));
@@ -185,6 +190,7 @@ export default function App() {
 
     if (decodedPath === '/redaksi' || decodedPath === '/admin') {
       setActiveView('redaksi-portal');
+      setIsRouteUnrecognized(false);
       return;
     }
 
@@ -198,6 +204,7 @@ export default function App() {
       } else {
         setActiveView('author-cms');
       }
+      setIsRouteUnrecognized(false);
       return;
     }
 
@@ -211,6 +218,7 @@ export default function App() {
       } else {
         setActiveView('editor-cms');
       }
+      setIsRouteUnrecognized(false);
       return;
     }
 
@@ -241,9 +249,11 @@ export default function App() {
       if (matchedCategory) {
         setSelectedCategory(matchedCategory);
         setSearchQuery('');
+        setIsRouteUnrecognized(false);
       } else {
         setSelectedCategory('Semua');
         setSearchQuery(catRaw);
+        setIsRouteUnrecognized(true); // Unrecognized category
       }
       return;
     }
@@ -287,6 +297,7 @@ export default function App() {
       if (matchedArticle) {
         setSelectedArticleId(matchedArticle.id);
         setActiveView('detail');
+        setIsRouteUnrecognized(false);
         return;
       }
 
@@ -295,6 +306,7 @@ export default function App() {
       if (!isLiveConnected) {
         setSelectedArticleId(null);
         setActiveView('detail');
+        setIsRouteUnrecognized(false);
         return;
       }
 
@@ -307,6 +319,7 @@ export default function App() {
       if (pathSegments.length >= 2 && !isPenulisPath && !isCategoryPath) {
         setSelectedArticleId(null);
         setActiveView('detail');
+        setIsRouteUnrecognized(true);
         return;
       }
 
@@ -323,6 +336,7 @@ export default function App() {
         setSelectedAuthorId('user-admin-owner');
         setSelectedAuthorName('Admin SGA Redaksi');
         setActiveView('author-profile');
+        setIsRouteUnrecognized(false);
         return;
       }
 
@@ -344,6 +358,7 @@ export default function App() {
         setSelectedAuthorId(u.id);
         setSelectedAuthorName(u.name);
         setActiveView('author-profile');
+        setIsRouteUnrecognized(false);
         return;
       }
 
@@ -358,6 +373,7 @@ export default function App() {
         setSelectedAuthorId(artAuthor.authorId);
         setSelectedAuthorName(artAuthor.authorName);
         setActiveView('author-profile');
+        setIsRouteUnrecognized(false);
         return;
       }
     }
@@ -365,6 +381,7 @@ export default function App() {
     // Default fallback to Home if path is unrecognized
     setActiveView('home');
     setSelectedArticleId(null);
+    setIsRouteUnrecognized(true);
   };
 
   // Subscribe to real-time Firestore synchronization
@@ -515,9 +532,10 @@ export default function App() {
       selectedAuthorName,
       authorUser,
       authorArticles.filter(a => a.status === 'published' || !a.status).length,
-      authorArticles
+      authorArticles,
+      isRouteUnrecognized
     );
-  }, [selectedArticle, selectedCategory, activeView, selectedAuthorName, selectedAuthorId, users, syncedArticles]);
+  }, [selectedArticle, selectedCategory, activeView, selectedAuthorName, selectedAuthorId, users, syncedArticles, isRouteUnrecognized]);
 
   const handleToggleBookmark = (id: string) => {
     toggleBookmark(id);

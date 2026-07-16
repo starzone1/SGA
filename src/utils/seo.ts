@@ -389,12 +389,27 @@ export function updateArticleSEO(
   authorName?: string | null,
   authorUser?: User | null,
   authorArticlesCount?: number,
-  authorArticles?: Article[]
+  authorArticles?: Article[],
+  isUnrecognizedPath?: boolean
 ) {
   const DEFAULT_TITLE = 'SGA News - Portal Berita & Media Komunitas Independen';
   const DEFAULT_DESC = 'Portal berita independen dan media komunitas SGA News. Menyajikan berita terkini teknologi, olahraga, bisnis, dan opini terpercaya.';
   const DEFAULT_IMAGE = 'https://ik.imagekit.io/dxokd3m9y/sgaicon.png';
   const DEFAULT_URL = window.location.origin + window.location.pathname;
+
+  // Robots indexing (noindex for unrecognized paths/404s, index for valid pages)
+  let robotsTag = 'index, follow';
+  if (activeView === 'detail' && article) {
+    if (article.status === 'published' || !article.status) {
+      robotsTag = 'index, follow'; // Published content is explicitly and always enabled for indexable status
+    } else {
+      robotsTag = 'noindex, nofollow'; // Draft/unapproved articles are noindex
+    }
+  } else if (isUnrecognizedPath || (activeView === 'detail' && !article)) {
+    robotsTag = 'noindex, nofollow';
+  }
+
+  updateMetaTag('meta[name="robots"]', 'name', 'robots', robotsTag);
 
   if (activeView === 'detail' && article) {
     // 1. Auto-generate Article Meta Description & Keywords
@@ -408,13 +423,13 @@ export function updateArticleSEO(
     // Update Title
     document.title = pageTitle;
 
-    // Standard Meta (Auto generated)
+    // Standard Meta (Explicitly dynamic and unique to the article)
     updateMetaTag('meta[name="title"]', 'name', 'title', pageTitle);
     updateMetaTag('meta[name="description"]', 'name', 'description', description);
     updateMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
     updateMetaTag('meta[name="author"]', 'name', 'author', article.authorName || 'Redaksi SGA News');
 
-    // Open Graph
+    // Open Graph (Explicitly dynamic and unique to the article)
     updateMetaTag('meta[property="og:type"]', 'property', 'og:type', 'article');
     updateMetaTag('meta[property="og:title"]', 'property', 'og:title', pageTitle);
     updateMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
@@ -423,16 +438,16 @@ export function updateArticleSEO(
 
     // Article specific OG tags
     updateMetaTag('meta[property="article:published_time"]', 'property', 'article:published_time', toIsoDate(article.publishedAt || article.createdAt));
-    updateMetaTag('meta[property="article:author"]', 'property', 'article:author', article.authorName);
-    updateMetaTag('meta[property="article:section"]', 'property', 'article:section', article.category);
+    updateMetaTag('meta[property="article:author"]', 'property', 'article:author', article.authorName || 'Redaksi SGA News');
+    updateMetaTag('meta[property="article:section"]', 'property', 'article:section', article.category || 'Berita Utama');
 
-    // Twitter Card
+    // Twitter Card (Explicitly dynamic and unique to the article)
     updateMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
     updateMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', pageTitle);
     updateMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
     updateMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', coverImage);
 
-    // Canonical
+    // Canonical Tag (Dynamically sets the canonical tag based on current article's unique data)
     updateLinkTag('canonical', articleUrl);
 
     // Detailed Google-compliant Schema.org NewsArticle Structured Data
@@ -504,16 +519,20 @@ export function updateArticleSEO(
     // 3. Home / Category / Dashboard Meta
     let pageTitle = DEFAULT_TITLE;
     let description = DEFAULT_DESC;
+    let canonicalUrl = window.location.origin + '/';
 
     if (selectedCategory && selectedCategory !== 'Semua') {
       pageTitle = `Berita ${selectedCategory} Terkini - SGA News`;
       description = `Kumpulan berita ${selectedCategory} terbaru, terpercaya, dan mendalam di SGA News Portal.`;
+      canonicalUrl = `${window.location.origin}/kategori/${createSlug(selectedCategory)}`;
     } else if (activeView === 'author-cms') {
       pageTitle = 'Portal Penulis - SGA News';
       description = 'Dashboard Penulis SGA News untuk membuat dan mengelola artikel berita komunitas.';
+      canonicalUrl = `${window.location.origin}/redaksi/penulis`;
     } else if (activeView === 'editor-cms') {
       pageTitle = 'Portal Redaksi & Editor - SGA News';
       description = 'Dashboard Redaksi SGA News untuk peninjauan, moderasi, dan penerbitan berita.';
+      canonicalUrl = `${window.location.origin}/redaksi/editor`;
     }
 
     document.title = pageTitle;
@@ -527,21 +546,21 @@ export function updateArticleSEO(
     updateMetaTag('meta[property="og:title"]', 'property', 'og:title', pageTitle);
     updateMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
     updateMetaTag('meta[property="og:image"]', 'property', 'og:image', DEFAULT_IMAGE);
-    updateMetaTag('meta[property="og:url"]', 'property', 'og:url', DEFAULT_URL);
+    updateMetaTag('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
 
     updateMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
     updateMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', pageTitle);
     updateMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
     updateMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', DEFAULT_IMAGE);
 
-    updateLinkTag('canonical', DEFAULT_URL);
+    updateLinkTag('canonical', canonicalUrl);
 
     // Schema.org WebSite Structured Data
     updateJsonLd({
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       'name': 'SGA News Portal',
-      'url': DEFAULT_URL,
+      'url': canonicalUrl,
       'description': DEFAULT_DESC,
       'publisher': {
         '@type': 'Organization',
