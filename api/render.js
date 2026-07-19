@@ -137,16 +137,19 @@ export default async function handler(req, res) {
   if (!articles || !users || (Date.now() - cache.lastFetched > CACHE_DURATION)) {
     try {
       const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-      if (fs.existsSync(configPath)) {
-        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        const app = initializeApp(firebaseConfig);
-        const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-          ? firebaseConfig.firestoreDatabaseId
-          : undefined;
-        const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+      if (!fs.existsSync(configPath)) {
+        throw new Error('firebase-applet-config.json not found');
+      }
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-        // Fetch Articles from db
-        const artSnap = await getDocs(collection(db, 'articles'));
+      const app = initializeApp(firebaseConfig);
+      const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+        ? firebaseConfig.firestoreDatabaseId
+        : undefined;
+      const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+
+      // Fetch Articles from db
+      const artSnap = await getDocs(collection(db, 'articles'));
         const fetchedArticles = [];
         artSnap.forEach((docSnap) => {
           const d = docSnap.data();
@@ -197,7 +200,6 @@ export default async function handler(req, res) {
         cache.users = finalUsers;
         cache.lastFetched = Date.now();
         console.log(`[SEO Render API] Cache updated. Articles: ${finalArticles.length}, Users: ${finalUsers.length}`);
-      }
     } catch (err) {
       console.error('[SEO Render API] Error initializing Firestore client, utilizing static fallbacks.', err.message);
       cache.articles = fallbackArticles;

@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       throw new Error('firebase-applet-config.json not found');
     }
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    
+
     const app = initializeApp(firebaseConfig);
     const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
       ? firebaseConfig.firestoreDatabaseId
