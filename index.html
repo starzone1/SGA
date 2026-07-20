@@ -26,9 +26,22 @@
     <!-- Preload critical brand asset -->
     <link rel="preload" as="image" href="https://ik.imagekit.io/dxokd3m9y/sgaicon.png" />
 
-    <!-- Theme Initialization Script -->
+    <!-- Theme Initialization Script & Window Property Polyfill Shield -->
     <script>
       (function() {
+        // Shield window.fetch from throwing TypeError when overwritten in iframe sandboxes
+        try {
+          var originalFetch = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() { return originalFetch; },
+            set: function(val) { originalFetch = val; },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn('Unable to patch window.fetch getter/setter:', e);
+        }
+
         try {
           var saved = localStorage.getItem('sga_theme');
           var isDark = saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
