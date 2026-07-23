@@ -1,5 +1,3 @@
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../src/lib/firebase';
 import fs from 'fs';
 import path from 'path';
 
@@ -18,7 +16,6 @@ function createSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-// Memory cache to prevent hitting Firestore quotas and ensure ultra-fast response times
 interface CacheStore {
   articles: any[] | null;
   users: any[] | null;
@@ -31,6 +28,68 @@ let cache: CacheStore = {
   lastFetched: 0
 };
 const CACHE_DURATION = 15 * 60 * 1000; // 15 Minutes Cache Lifetime
+
+// Fast REST fetch for Firestore in Node.js serverless environment
+async function fetchFirestoreData() {
+  const projectId = 'gen-lang-client-0169314778';
+  const dbId = 'ai-studio-sganewsportal-90700467-8452-46fc-a827-8eff7eea9caf';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s max
+
+  try {
+    const artUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/articles`;
+    const userUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/users`;
+
+    const [artRes, userRes] = await Promise.all([
+      fetch(artUrl, { signal: controller.signal, headers: { 'Accept': 'application/json' } }),
+      fetch(userUrl, { signal: controller.signal, headers: { 'Accept': 'application/json' } })
+    ]);
+    clearTimeout(timeoutId);
+
+    const fetchedArticles: any[] = [];
+    if (artRes.ok) {
+      const artData = await artRes.json();
+      if (artData && Array.isArray(artData.documents)) {
+        artData.documents.forEach((doc: any) => {
+          const d = doc.fields || {};
+          const cat = d.category?.stringValue || '';
+          if (cat !== 'Politik') {
+            fetchedArticles.push({
+              id: doc.name ? doc.name.split('/').pop() : '',
+              title: d.title?.stringValue || '',
+              slug: d.slug?.stringValue || '',
+              excerpt: d.excerpt?.stringValue || '',
+              imageUrl: d.coverImage?.stringValue || d.imageUrl?.stringValue || '',
+              authorName: d.authorName?.stringValue || '',
+              status: d.status?.stringValue || 'published'
+            });
+          }
+        });
+      }
+    }
+
+    const fetchedUsers: any[] = [];
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      if (userData && Array.isArray(userData.documents)) {
+        userData.documents.forEach((doc: any) => {
+          const d = doc.fields || {};
+          fetchedUsers.push({
+            id: doc.name ? doc.name.split('/').pop() : '',
+            name: d.name?.stringValue || '',
+            bio: d.bio?.stringValue || ''
+          });
+        });
+      }
+    }
+
+    return { fetchedArticles, fetchedUsers };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    return { fetchedArticles: [], fetchedUsers: [] };
+  }
+}
 
 export default async function handler(req: any, res: any) {
   const urlPath = req.url || '/';
@@ -67,7 +126,7 @@ export default async function handler(req: any, res: any) {
   let pageCanonical = `https://sganews.vercel.app${pathname}`;
   let robotsTag = 'index, follow';
 
-  // Static baseline data fallbacks (same as sitemap.ts and initialData.ts)
+  // Static baseline data fallbacks
   const fallbackUsers = [
     { id: 'kancah4d-official', name: 'KANCAH4D Official', bio: 'SITUS DARING ONLINE TERPERCAYA DI KANCAH4D [Exclusive]' },
     { id: 'user-admin-owner', name: 'Admin SGA Redaksi', bio: 'Pemimpin Redaksi Utama & Owner SGA News Portal.' },
@@ -141,65 +200,29 @@ export default async function handler(req: any, res: any) {
 
   // Fetch or utilize cache
   if (!articles || !users || (Date.now() - cache.lastFetched > CACHE_DURATION)) {
-    try {
-      // Fetch Articles from db
-      const artSnap = await getDocs(collection(db, 'articles'));
-      const fetchedArticles: any[] = [];
-      artSnap.forEach((docSnap) => {
-        const d = docSnap.data();
-        if (d && d.category !== 'Politik') {
-          fetchedArticles.push({
-            id: docSnap.id,
-            title: d.title || '',
-            slug: d.slug || '',
-            excerpt: d.excerpt || '',
-            imageUrl: d.coverImage || d.imageUrl || '',
-            authorName: d.authorName || '',
-            status: d.status || 'published'
-          });
-        }
-      });
+    const { fetchedArticles, fetchedUsers } = await fetchFirestoreData();
 
-      // Fetch Users from db
-      const userSnap = await getDocs(collection(db, 'users'));
-      const fetchedUsers: any[] = [];
-      userSnap.forEach((docSnap) => {
-        const d = docSnap.data();
-        fetchedUsers.push({
-          id: docSnap.id,
-          name: d.name || '',
-          bio: d.bio || ''
-        });
-      });
+    // Deduplicate and merge baseline with db
+    const articleSlugs = new Set(fetchedArticles.map(a => a.slug || createSlug(a.title)));
+    const finalArticles = [...fetchedArticles];
+    fallbackArticles.forEach(fa => {
+      const faSlug = fa.slug || createSlug(fa.title);
+      if (!articleSlugs.has(faSlug)) {
+        finalArticles.push(fa);
+      }
+    });
 
-      // Deduplicate and merge baseline with db
-      const articleSlugs = new Set(fetchedArticles.map(a => a.slug || createSlug(a.title)));
-      const finalArticles = [...fetchedArticles];
-      fallbackArticles.forEach(fa => {
-        const faSlug = fa.slug || createSlug(fa.title);
-        if (!articleSlugs.has(faSlug)) {
-          finalArticles.push(fa);
-        }
-      });
+    const userIds = new Set(fetchedUsers.map(u => u.id));
+    const finalUsers = [...fetchedUsers];
+    fallbackUsers.forEach(fu => {
+      if (!userIds.has(fu.id)) {
+        finalUsers.push(fu);
+      }
+    });
 
-      const userIds = new Set(fetchedUsers.map(u => u.id));
-      const finalUsers = [...fetchedUsers];
-      fallbackUsers.forEach(fu => {
-        if (!userIds.has(fu.id)) {
-          finalUsers.push(fu);
-        }
-      });
-
-      cache.articles = finalArticles;
-      cache.users = finalUsers;
-      cache.lastFetched = Date.now();
-      console.log(`[SEO Render API] Cache updated. Articles: ${finalArticles.length}, Users: ${finalUsers.length}`);
-    } catch (err: any) {
-      console.error('[SEO Render API] Error initializing Firestore client, utilizing static fallbacks.', err.message);
-      cache.articles = fallbackArticles;
-      cache.users = fallbackUsers;
-      cache.lastFetched = Date.now();
-    }
+    cache.articles = finalArticles;
+    cache.users = finalUsers;
+    cache.lastFetched = Date.now();
   }
 
   articles = cache.articles || fallbackArticles;
@@ -225,7 +248,6 @@ export default async function handler(req: any, res: any) {
         pageCanonical = `https://sganews.vercel.app/${s1}`;
         robotsTag = 'index, follow';
       } else {
-        // Unrecognized top-level path (like /kancahtoto when it's deleted) -> Make it noindex to prevent indexing!
         pageTitle = 'SGA News - Halaman Tidak Ditemukan';
         pageDesc = 'Maaf, halaman atau profil penulis yang Anda cari tidak dapat ditemukan atau telah dihapus dari portal berita SGA News.';
         robotsTag = 'noindex, nofollow';
@@ -260,14 +282,12 @@ export default async function handler(req: any, res: any) {
         pageCanonical = `https://sganews.vercel.app/${s1}/${s2}`;
         robotsTag = 'index, follow';
       } else {
-        // Unrecognized article path -> Make it noindex!
         pageTitle = 'SGA News - Artikel Tidak Ditemukan';
         pageDesc = 'Maaf, artikel berita yang Anda cari tidak dapat ditemukan atau sudah dihapus dari portal berita SGA News.';
         robotsTag = 'noindex, nofollow';
       }
     }
   } else if (segments.length > 2) {
-    // Unrecognized route -> Make it noindex!
     pageTitle = 'SGA News - Halaman Tidak Ditemukan';
     pageDesc = 'Maaf, halaman yang Anda tuju tidak tersedia.';
     robotsTag = 'noindex, nofollow';
@@ -289,7 +309,6 @@ export default async function handler(req: any, res: any) {
   html = html.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/gi, `<link rel="canonical" href="${pageCanonical}" />`);
   html = html.replace(/<meta\s+name="robots"\s+content=".*?"\s*\/?>/gi, `<meta name="robots" content="${robotsTag}" />`);
 
-  // Return generated HTML with s-maxage header to cache render pages for lightning speed (except search/admin paths)
   const isAdminOrSearch = pathname.startsWith('/admin') || pathname.startsWith('/redaksi') || pathname.startsWith('/search');
   if (!isAdminOrSearch && robotsTag === 'index, follow') {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
